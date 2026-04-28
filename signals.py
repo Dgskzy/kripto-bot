@@ -1,24 +1,15 @@
-import requests
+import time
 import pandas as pd
 import numpy as np
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
+import ccxt
 
-# Basit önbellek
-_price_cache = {}
-_ohlcv_cache = {}
-_CACHE_TIMEOUT = 60  # 60 saniye
+# Binance borsası (ücretsiz, limitsiz, hızlı)
+exchange = ccxt.binance()
 
-BASE_URL = "https://api.coingecko.com/api/v3"
-
-COIN_IDS = {
-    "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana",
-    "AVAX": "avalanche-2", "XRP": "ripple", "LINK": "chainlink",
-    "EGLD": "elrond-erd-2", "MATIC": "matic-network", "POL": "matic-network",
-    "ADA": "cardano", "DOT": "polkadot", "DOGE": "dogecoin", "BNB": "binancecoin",
+SYMBOL_ALIASES = {
+    "MATIC": "POL",
 }
-
-SYMBOL_ALIASES = {"MATIC": "POL"}
 
 SUPERTREND_PERIOD = 10
 SUPERTREND_MULT = 3.0
@@ -44,90 +35,24 @@ def _get_coin_id(symbol: str) -> str:
 
 
 def get_current_price(symbol: str) -> float:
-    # Önbellek kontrolü
-    now = time.time()
-    if symbol in _price_cache:
-        cached_time, cached_price = _price_cache[symbol]
-        if now - cached_time < _CACHE_TIMEOUT:
-            return cached_price
-
-    coin_id = _get_coin_id(symbol)
-    _wait_for_rate_limit()
-    url = f"{BASE_URL}/simple/price"
-    params = {"ids": coin_id, "vs_currencies": "usd"}
-    resp = requests.get(url, params=params, timeout=10)
-    if resp.status_code == 200:
-        data = resp.json()
-        if coin_id in data and "usd" in data[coin_id]:
-            price = float(data[coin_id]["usd"])
-            _price_cache[symbol] = (now, price)  # Önbelleğe kaydet
-            return price
-    raise Exception(f"Fiyat alınamadı: {resp.status_code}")
+    """Binance'den anlık fiyat al."""
+    try:
+        ticker = exchange.fetch_ticker(symbol)
+        return float(ticker["last"])
+    except Exception as e:
+        raise Exception(f"Fiyat alınamadı: {e}")
 
 
 def get_ohlcv(symbol: str, timeframe: str = "1h", limit: int = 120) -> pd.DataFrame:
-    # Önbellek kontrolü
-    now = time.time()
-    cache_key = f"{symbol}_{timeframe}"
-    if cache_key in _ohlcv_cache:
-        cached_time, cached_df = _ohlcv_cache[cache_key]
-        if now - cached_time < _CACHE_TIMEOUT:
-            return cached_df.tail(limit)
-    """CoinGecko OHLCV - günlük veri çek, sonra timeframe'e dönüştür."""
-    coin_id = _get_coin_id(symbol)
-
-    tf_map = {"1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "4h": 240, "1d": 1440}
-    minutes = tf_map.get(timeframe, 60)
-
-    # Her zaman 30 günlük veri çek (güvenli)
-    days = 30
-
-    url = f"{BASE_URL}/coins/{coin_id}/ohlc"
-    params = {"vs_currency": "usd", "days": str(days)}
-
-    _wait_for_rate_limit()
-    resp = requests.get(url, params=params, timeout=15)
-
-    if resp.status_code != 200:
-        raise Exception(f"OHLCV alınamadı: {resp.status_code}")
-
-    raw_data = resp.json()
-    if not raw_data:
-        raise Exception("Boş OHLCV verisi")
-
-    records = []
-    for item in raw_data:
-        ts = datetime.fromtimestamp(item[0] / 1000)
-        records.append({
-            "timestamp": ts,
-            "open": float(item[1]),
-            "high": float(item[2]),
-            "low": float(item[3]),
-            "close": float(item[4]),
-            "volume": 0
-        })
-
-    df = pd.DataFrame(records)
-    df.set_index("timestamp", inplace=True)
-
-    # Zaman dilimine göre yeniden örnekle
-    if minutes > 1:
-        freq_map = {1: "1min", 5: "5min", 15: "15min", 30: "30min", 60: "1h", 240: "4h", 1440: "1d"}
-        freq = freq_map.get(minutes, "1h")
-        df = df.resample(freq).agg({
-            "open": "first",
-            "high": "max",
-            "low": "min",
-            "close": "last",
-            "volume": "sum",
-        }).dropna()
-
-    if df.empty:
-        raise Exception("Dönüştürme sonrası boş DataFrame")
-
-    df = df.tail(limit)
-    _ohlcv_cache[cache_key] = (now, df)  # Önbelleğe kaydet
-    return df
+    """Binance'den OHLCV verisi çek."""
+    try:
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
+        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df.set_index("timestamp", inplace=True)
+        return df
+    except Exception as e:
+        raise Exception(f"OHLCV alınamadı: {e}")
 
 
 def calc_atr(df: pd.DataFrame, period: int = SUPERTREND_PERIOD) -> pd.Series:
