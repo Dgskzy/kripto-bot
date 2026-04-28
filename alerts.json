@@ -1,0 +1,18 @@
+[
+  {
+    "id": "f9552e73",
+    "user_id": 1051704350,
+    "symbol": "SOL/USD",
+    "condition": "below",
+    "target_price": 83.0,
+    "triggered": false
+  },
+  {
+    "id": "bc705d6d",
+    "user_id": 1051704350,
+    "symbol": "SOL/USD",
+    "condition": "above",
+    "target_price": 88.0,
+    "triggered": false
+  }
+]
