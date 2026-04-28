@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -683,6 +685,17 @@ def main():
     if not TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
         return
+    # Render Web Service için sağlık kontrolü
+    app_flask = Flask(__name__)
+
+    @app_flask.route('/')
+    def health():
+        return "Bot çalışıyor!", 200
+
+    def run_flask():
+        app_flask.run(host='0.0.0.0', port=10000)
+
+    threading.Thread(target=run_flask, daemon=True).start()    
 
     # Proxy olmadan, ama özel timeout ve bağlantı havuzu ayarlarıyla
     import httpx
