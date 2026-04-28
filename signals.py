@@ -283,23 +283,35 @@ def format_price(price: float) -> str:
 def normalize_symbol(symbol: str) -> str:
     symbol = symbol.upper().strip()
     
-    # Binance'de USDT çiftleri kullanılır, USD değil
+    # Özel eşleştirmeler (Binance'de farklı olanlar)
+    SPECIAL_MAP = {
+        "AVAX": "AVAX/USDT",
+        "XRP": "XRP/USDT",
+        "LINK": "LINK/USDT",
+        "EGLD": "EGLD/USDT",
+        "BTC": "BTC/USDT",
+        "ETH": "ETH/USDT",
+        "SOL": "SOL/USDT",
+    }
+    
+    # Eğer direkt eşleşme varsa onu kullan
     if "/" in symbol:
         base, quote = symbol.split("/", 1)
         base = SYMBOL_ALIASES.get(base, base)
+        if base in SPECIAL_MAP:
+            return SPECIAL_MAP[base]
         if quote in ("USD", "USDT"):
             return f"{base}/USDT"
         return f"{base}/{quote}"
     
     if symbol.endswith("USDT"):
         base = symbol[:-4]
-        base = SYMBOL_ALIASES.get(base, base)
-        return f"{base}/USDT"
     elif symbol.endswith("USD"):
         base = symbol[:-3]
-        base = SYMBOL_ALIASES.get(base, base)
-        return f"{base}/USDT"
     else:
         base = symbol
-        base = SYMBOL_ALIASES.get(base, base)
-        return f"{base}/USDT"
+    
+    base = SYMBOL_ALIASES.get(base, base)
+    if base in SPECIAL_MAP:
+        return SPECIAL_MAP[base]
+    return f"{base}/USDT"
