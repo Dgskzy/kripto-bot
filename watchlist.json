@@ -1,13 +1,6 @@
 {
   "1051704350": {
     "coins": [
-      "BTC/USD",
-      "SOL/USD",
-      "AVAX/USD",
-      "ETH/USD",
-      "XRP/USD",
-      "LINK/USD",
-      "EGLD/USD"
     ],
     "timeframe": "1h",
     "last_signals": {}
