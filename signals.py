@@ -282,15 +282,24 @@ def format_price(price: float) -> str:
 
 def normalize_symbol(symbol: str) -> str:
     symbol = symbol.upper().strip()
+    
+    # Binance'de USDT çiftleri kullanılır, USD değil
     if "/" in symbol:
-        base, _ = symbol.split("/", 1)
+        base, quote = symbol.split("/", 1)
         base = SYMBOL_ALIASES.get(base, base)
-        return f"{base}/USD"
+        if quote in ("USD", "USDT"):
+            return f"{base}/USDT"
+        return f"{base}/{quote}"
+    
     if symbol.endswith("USDT"):
         base = symbol[:-4]
+        base = SYMBOL_ALIASES.get(base, base)
+        return f"{base}/USDT"
     elif symbol.endswith("USD"):
         base = symbol[:-3]
+        base = SYMBOL_ALIASES.get(base, base)
+        return f"{base}/USDT"
     else:
         base = symbol
-    base = SYMBOL_ALIASES.get(base, base)
-    return f"{base}/USD"
+        base = SYMBOL_ALIASES.get(base, base)
+        return f"{base}/USDT"
