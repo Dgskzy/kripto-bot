@@ -27,9 +27,13 @@ class Alert:
 def _load_alerts() -> list[Alert]:
     if not os.path.exists(ALERTS_FILE):
         return []
-    with open(ALERTS_FILE, "r") as f:
-        data = json.load(f)
-    return [Alert.from_dict(a) for a in data]
+    try:
+        with open(ALERTS_FILE, "r") as f:
+            data = json.load(f)
+        return [Alert.from_dict(a) for a in data]
+    except (json.JSONDecodeError, KeyError):
+        # Dosya bozuksa sıfırla
+        return []
 
 
 def _save_alerts(alerts: list[Alert]):
