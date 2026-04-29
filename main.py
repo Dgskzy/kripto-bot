@@ -209,6 +209,9 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text(f"⏳ {symbol} analiz ediliyor...")
         s = calculate_signals(symbol, timeframe)
 
+        # Funding rate bilgisini BURADA çek (parantez dışında)
+        funding = get_funding_info(symbol)
+
         text = (
             f"📊 *{s['symbol']} — Teknik Analiz*\n"
             f"⏱ Zaman: {s['timeframe']} | Fiyat: *{format_price(s['price'])}*\n\n"
@@ -226,10 +229,8 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"ATR: `{format_price(s['atr'])}`\n"
             f"AL için → SL: `{format_price(s['sl_buy'])}` | TP: `{format_price(s['tp_buy'])}`\n"
             f"SAT için → SL: `{format_price(s['sl_sell'])}` | TP: `{format_price(s['tp_sell'])}`\n\n"
-            f"RSI (14): `{s['rsi']}`\n\n"
-            # Funding rate bilgisi
-            funding = get_funding_info(symbol)
-            text += f"\n\n📊 *Fonlama Oranı:* %{funding['rate']} {funding['icon']} {funding['text']}"
+            f"RSI (14): `{s['rsi']}`\n"
+            f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
         await msg.edit_text(text, parse_mode="Markdown")
