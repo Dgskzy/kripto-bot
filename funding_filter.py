@@ -5,22 +5,39 @@ exchange = ccxt.binance()
 def get_funding_info(symbol: str) -> dict:
     """
     Binance'den güncel funding rate bilgisini çeker.
-    Sinyal engellemez, sadece bilgi verir.
     """
     try:
         binance_symbol = symbol.replace("/", "")
-        ticker_data = exchange.fetch_funding_rate(binance_symbol)
         
-        # fetch_funding_rate bazen liste döner
-        if isinstance(ticker_data, list):
-            ticker_data = ticker_data[0]
-        
-        rate = float(ticker_data["fundingRate"]) * 100  # Yüzde
+        # Önce fetch_funding_rate dene
+        try:
+            funding_data = exchange.fetch_funding_rate(binance_symbol)
+            if isinstance(funding_data, list):
+                funding_data = funding_data[0]
+            rate = float(funding_data["fundingRate"]) * 100
+        except:
+            # fetch_funding_rate çalışmazsa, fapiPublic ile dene
+            try:
+                funding_data = exchange.fapiPublic_get_premiumindex({"symbol": binance_symbol})
+                rate = float(funding_data["lastFundingRate"]) * 100
+            except:
+                # Hiçbiri çalışmazsa varsayılan
+                return {
+                    "rate": 0,
+                    "icon": "⚪",
+                    "text": "Veri yok",
+                    "max_limit": 0,
+                    "min_limit": 0,
+                }
         
         # Coin'in kendi limitlerini al
-        market = exchange.market(binance_symbol)
-        max_rate = float(market['info'].get('maxFundingRate', 0.01)) * 100
-        min_rate = float(market['info'].get('minFundingRate', -0.01)) * 100
+        try:
+            market = exchange.market(binance_symbol)
+            max_rate = float(market['info'].get('maxFundingRate', 0.01)) * 100
+            min_rate = float(market['info'].get('minFundingRate', -0.01)) * 100
+        except:
+            max_rate = 0.75  # varsayılan
+            min_rate = -0.75
         
         # Yoruma göre ikon
         if rate >= max_rate * 0.6:
@@ -50,11 +67,7 @@ def get_funding_info(symbol: str) -> dict:
         return {
             "rate": 0,
             "icon": "⚪",
-            "text": f"Veri yok",
+            "text": f"Hata: {str(e)[:20]}",
             "max_limit": 0,
             "min_limit": 0,
         }
-
-    except Exception as e:
-        print(f"Funding analiz hatası: {e}")
-        return "normal", "Veri alınamadı"
