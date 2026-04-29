@@ -19,6 +19,7 @@ from signals import (
     format_price,
     normalize_symbol,
 )
+from signal_filter import get_cvd_oi_data, classify_signal
 from alerts import add_alert, get_user_alerts, get_all_active_alerts, mark_alert_triggered, delete_alert
 from watchlist import (
     add_coin,
@@ -527,7 +528,23 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 sig = detect_signal(symbol, timeframe)
                 if sig is None:
                     continue
+                # --- CVD / OI FİLTRESİ ---
+                quality = "WEAK_LONG" if sig["signal_type"] == "BUY" else "WEAK_SHORT"
+                try:
+                    cvd_oi_df = get_cvd_oi_data(symbol, timeframe, limit=120)
+                    if cvd_oi_df is not None and not cvd_oi_df.empty:
+                        quality = classify_signal(sig["signal_type"],
+                                                  cvd_oi_df["cvd"],
+                                                  cvd_oi_df["oi"])
+                    else:
+                        # Veri yoksa varsayılan WEAK ile devam et
+                        pass
+                except Exception as e:
+                    logger.error(f"CVD/OI filter error {symbol}: {e}")
 
+                if quality == "RANGE":
+                    continue  # bu sinyali tamamen atla, bildirim gönderme
+                # ------------------------
                 last = get_last_signal(user_id, symbol)
 
                 # Aynı yön → spam engelle, atla
@@ -574,14 +591,16 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                     atr=sig["atr"],
                     timeframe=timeframe,
                     reason=sig["reason"],
+                    strength=quality, 
                 )
 
                 icon = "🟢" if sig["signal_type"] == "BUY" else "🔴"
                 action = "AL" if sig["signal_type"] == "BUY" else "SAT"
+                strength_emoji = "💪" if "STRONG" in quality else "⚠️"
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=(
-                        f"{icon} *{action} SİNYALİ — {symbol}*\n"
+                        f"{icon} *{action} SİNYALİ — {symbol}* {strength_emoji} {quality}\n"
                         f"⏱ Zaman: {timeframe}\n\n"
                         f"💵 Giriş Fiyatı: *{format_price(sig['entry_price'])}*\n"
                         f"🛑 Stop Loss: *{format_price(sig['stop_loss'])}* (1.5×ATR)\n"
