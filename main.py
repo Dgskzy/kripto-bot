@@ -223,10 +223,14 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     timeframe = settings.get("timeframe", "1h")
 
     if not coins:
-        await update.message.reply_text(
-            "Takip listeniz boş.\n\nCoin eklemek için: /addcoin BTC"
-        )
-        return
+        # Varsayılan listeyi dene
+        coins = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "EGLD/USDT"]
+        # Kalıcı olarak kaydet
+        for coin in coins:
+            try:
+                add_coin(user_id, coin)
+            except:
+                pass
 
     msg = await update.message.reply_text(f"⏳ {len(coins)} coin analiz ediliyor...")
 
