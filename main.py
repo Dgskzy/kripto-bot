@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 from flask import Flask
+from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -120,6 +121,72 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❌ '{raw}' için fiyat alınamadı. Coin sembolünü kontrol edin.\nÖrnek: BTC, ETH, SOL"
         )
 
+async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Takip listesindeki coin'leri puana göre sıralar."""
+    user_id = update.effective_user.id
+    settings = get_user_settings(user_id)
+    coins = settings.get("coins", [])
+    timeframe = settings.get("timeframe", "1h")
+
+    if not coins:
+        coins = DEFAULT_COINS
+
+    msg = await update.message.reply_text(f"⏳ {len(coins)} coin taranıyor...")
+
+    results = []
+    for symbol in coins:
+        try:
+            s = calculate_signals(symbol, timeframe)
+            # Puan hesaplama: RSI, EMA farkı, SuperTrend yönü
+            score = 0
+            # EMA farkı büyükse puan artar
+            ema_diff = abs(s["ema12"] - s["ema26"]) / s["price"] * 100
+            score += min(ema_diff * 10, 30)
+            # RSI aşırı satım/alım bölgesindeyse puan artar
+            if s["rsi"] < 30:
+                score += 25  # Aşırı satım = AL fırsatı
+            elif s["rsi"] > 70:
+                score += 25  # Aşırı alım = SAT fırsatı
+            elif 40 <= s["rsi"] <= 60:
+                score += 10  # Nötr bölge
+            # Karar yönüne göre puan
+            if "AL" in s["overall"]:
+                score += 20
+            elif "SAT" in s["overall"]:
+                score += 20
+
+            results.append({
+                "symbol": symbol,
+                "price": s["price"],
+                "rsi": s["rsi"],
+                "overall": s["overall"],
+                "ema_text": s["ema_text"],
+                "supertrend_text": s["supertrend_text"],
+                "score": round(score, 1),
+            })
+        except Exception as e:
+            logger.error(f"Top scan error {symbol}: {e}")
+
+    # Puana göre sırala
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+    if not results:
+        await msg.edit_text("❌ Hiçbir coin taranamadı.")
+        return
+
+    lines = [f"🏆 *EN İYİ SETUPLAR* — {timeframe}\n"]
+    for i, r in enumerate(results[:10], 1):
+        medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+        lines.append(
+            f"{medal} *{r['symbol']}* — Puan: `{r['score']}`\n"
+            f"  💵 {format_price(r['price'])} | RSI: `{r['rsi']}`\n"
+            f"  🎯 {r['overall']} | {r['ema_text']}\n"
+            f"  {r['supertrend_text']}\n"
+        )
+
+    lines.append(f"\n⚠️ _Yatırım tavsiyesi değildir._")
+    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+
 
 async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -214,6 +281,61 @@ async def setinterval_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         f"Tüm sinyal taramaları bu zaman dilimiyle çalışacak.",
         parse_mode="Markdown",
     )
+
+async def scan20_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Binance'de en yüksek hacimli 20 coin'i tarar."""
+    msg = await update.message.reply_text("⏳ Binance'den Top 20 coin taranıyor...\nBu işlem 2-3 dakika sürebilir.")
+
+    try:
+        # Binance'den en yüksek hacimli USDT çiftlerini çek
+        exchange = ccxt.binance()
+        tickers = exchange.fetch_tickers()
+        
+        # Sadece USDT çiftlerini filtrele
+        usdt_pairs = []
+        for symbol, ticker in tickers.items():
+            if symbol.endswith("/USDT") and ticker.get("quoteVolume"):
+                # Stablecoin'leri ve düşük hacimli çiftleri ele
+                base = symbol.split("/")[0]
+                if base not in ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "EUR"]:
+                    usdt_pairs.append({
+                        "symbol": symbol,
+                        "volume": ticker["quoteVolume"],
+                        "price": ticker["last"],
+                    })
+
+        # Hacme göre sırala, ilk 20'yi al
+        usdt_pairs.sort(key=lambda x: x["volume"], reverse=True)
+        top20 = usdt_pairs[:20]
+
+        lines = [f"📊 *TOP 20 COIN TARAMASI* — 1h\n"]
+
+        for i, coin in enumerate(top20, 1):
+            try:
+                symbol = coin["symbol"]
+                d = get_dashboard_data(symbol, "1h")
+                st_icon = "🟢" if d["supertrend_dir"] == 1 else "🔴"
+                ema_icon = "🟢" if d["ema12"] > d["ema26"] else "🔴"
+                
+                # Hacmi okunabilir yap
+                vol_m = coin["volume"] / 1_000_000
+                vol_text = f"${vol_m:.0f}M" if vol_m >= 1 else f"${vol_m:.2f}M"
+
+                lines.append(
+                    f"{i}. *{symbol}*\n"
+                    f"  💵 {format_price(d['price'])} | 📊 Hacim: `{vol_text}`\n"
+                    f"  {ema_icon} EMA | {st_icon} SuperTrend\n"
+                    f"  📏 RSI: `{d['rsi']}` | ATR: `{format_price(d['atr'])}`\n"
+                )
+            except Exception as e:
+                lines.append(f"{i}. *{coin['symbol']}* — ❌ Veri alınamadı\n")
+
+        lines.append(f"\n⚠️ _Yatırım tavsiyesi değildir._")
+        await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+
+    except Exception as e:
+        logger.error(f"Scan20 error: {e}")
+        await msg.edit_text(f"❌ Tarama başarısız: {e}")
 
 
 async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -729,12 +851,14 @@ def main():
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("top", top_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("price", price_command))
     app.add_handler(CommandHandler("signals", signals_command))
     app.add_handler(CommandHandler("addcoin", addcoin_command))
     app.add_handler(CommandHandler("removecoin", removecoin_command))
     app.add_handler(CommandHandler("setinterval", setinterval_command))
+    app.add_handler(CommandHandler("scan20", scan20_command))
     app.add_handler(CommandHandler("dashboard", dashboard_command))
     app.add_handler(CommandHandler("opensignals", opensignals_command))
     app.add_handler(CommandHandler("stats", stats_command))
