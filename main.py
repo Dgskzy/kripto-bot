@@ -4,6 +4,7 @@ import threading
 from flask import Flask
 from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from funding_filter import get_funding_info
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -112,8 +113,14 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         symbol = normalize_symbol(raw)
         msg = await update.message.reply_text(f"⏳ {symbol} fiyatı alınıyor...")
         price = get_current_price(symbol)
+        
+        # Funding rate bilgisini ekle
+        funding = get_funding_info(symbol)
+        
         await msg.edit_text(
-            f"💰 *{symbol}*\n\nAnlık Fiyat: *{format_price(price)}*",
+            f"💰 *{symbol}*\n\n"
+            f"Anlık Fiyat: *{format_price(price)}*\n"
+            f"📊 Fonlama: *%{funding['rate']}* {funding['icon']} {funding['text']}",
             parse_mode="Markdown",
         )
     except Exception as e:
@@ -220,6 +227,9 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"AL için → SL: `{format_price(s['sl_buy'])}` | TP: `{format_price(s['tp_buy'])}`\n"
             f"SAT için → SL: `{format_price(s['sl_sell'])}` | TP: `{format_price(s['tp_sell'])}`\n\n"
             f"RSI (14): `{s['rsi']}`\n\n"
+            # Funding rate bilgisi
+            funding = get_funding_info(symbol)
+            text += f"\n\n📊 *Fonlama Oranı:* %{funding['rate']} {funding['icon']} {funding['text']}"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
         await msg.edit_text(text, parse_mode="Markdown")
@@ -724,6 +734,9 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 icon = "🟢" if sig["signal_type"] == "BUY" else "🔴"
                 action = "AL" if sig["signal_type"] == "BUY" else "SAT"
                 strength_emoji = "💪" if "STRONG" in quality else "⚠️"
+                # --- Funding rate bilgisini çek (YENİ) ---
+                funding = get_funding_info(symbol)
+                
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=(
@@ -734,6 +747,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                         f"🎯 Take Profit: *{format_price(sig['take_profit'])}* (3×ATR)\n"
                         f"📏 ATR: `{format_price(sig['atr'])}`\n"
                         f"📊 R:K Oranı: 1:2\n\n"
+                        f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"  # ← YENİ SATIR
                         f"📝 *Sebep:*\n{sig['reason']}\n\n"
                         f"Signal ID: `{saved['id']}`\n"
                         f"⚠️ _Yatırım tavsiyesi değildir._"
