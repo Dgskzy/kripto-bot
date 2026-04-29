@@ -882,6 +882,7 @@ def main():
     app.add_handler(CommandHandler("alert", alert_command))
     app.add_handler(CommandHandler("myalerts", myalerts_command))
     app.add_handler(CommandHandler("delalert", delalert_command))
+    app.add_handler(CommandHandler("backtest", backtest_command))
     app.add_handler(CallbackQueryHandler(button_callback))
 
     app.job_queue.run_repeating(check_alerts, interval=120, first=10)
