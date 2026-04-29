@@ -1,43 +1,34 @@
-import ccxt
-
-exchange = ccxt.binance()
+import requests
 
 def get_funding_info(symbol: str) -> dict:
     """
     Binance'den güncel funding rate bilgisini çeker.
+    Binance public API'si ile çalışır (ccxt'den bağımsız).
     """
     try:
+        # Binance sembol formatı: BTC/USDT -> BTCUSDT
         binance_symbol = symbol.replace("/", "")
         
-        # Önce fetch_funding_rate dene
-        try:
-            funding_data = exchange.fetch_funding_rate(binance_symbol)
-            if isinstance(funding_data, list):
-                funding_data = funding_data[0]
-            rate = float(funding_data["fundingRate"]) * 100
-        except:
-            # fetch_funding_rate çalışmazsa, fapiPublic ile dene
-            try:
-                funding_data = exchange.fapiPublic_get_premiumindex({"symbol": binance_symbol})
-                rate = float(funding_data["lastFundingRate"]) * 100
-            except:
-                # Hiçbiri çalışmazsa varsayılan
-                return {
-                    "rate": 0,
-                    "icon": "⚪",
-                    "text": "Veri yok",
-                    "max_limit": 0,
-                    "min_limit": 0,
-                }
+        # Binance public funding rate API'si
+        url = "https://fapi.binance.com/fapi/v1/premiumIndex"
+        resp = requests.get(url, params={"symbol": binance_symbol}, timeout=5)
         
-        # Coin'in kendi limitlerini al
-        try:
-            market = exchange.market(binance_symbol)
-            max_rate = float(market['info'].get('maxFundingRate', 0.01)) * 100
-            min_rate = float(market['info'].get('minFundingRate', -0.01)) * 100
-        except:
-            max_rate = 0.75  # varsayılan
+        if resp.status_code != 200:
+            return {"rate": 0, "icon": "⚪", "text": "Veri yok", "max_limit": 0, "min_limit": 0}
+        
+        data = resp.json()
+        rate = float(data["lastFundingRate"]) * 100  # Yüzdeye çevir
+        
+        # BTC için sabit limitler (genelde geçerli)
+        if binance_symbol in ["BTCUSDT", "ETHUSDT"]:
+            max_rate = 0.375
+            min_rate = -0.375
+        elif binance_symbol in ["SOLUSDT", "AVAXUSDT", "XRPUSDT", "LINKUSDT"]:
+            max_rate = 0.75
             min_rate = -0.75
+        else:
+            max_rate = 3.0   # DOGE, EGLD gibi volatil coin'ler
+            min_rate = -3.0
         
         # Yoruma göre ikon
         if rate >= max_rate * 0.6:
@@ -67,7 +58,7 @@ def get_funding_info(symbol: str) -> dict:
         return {
             "rate": 0,
             "icon": "⚪",
-            "text": f"Hata: {str(e)[:20]}",
+            "text": f"Hata: {str(e)[:15]}",
             "max_limit": 0,
             "min_limit": 0,
         }
