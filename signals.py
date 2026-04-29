@@ -16,6 +16,26 @@ SUPERTREND_MULT = 3.0
 SL_ATR_MULT = 1.5
 TP_ATR_MULT = 3.0
 
+# Coin bazlı volatilite profilleri
+VOLATILITY_PROFILES = {
+    "BTC": {"sl_mult": 1.0, "tp_mult": 2.5},
+    "ETH": {"sl_mult": 1.2, "tp_mult": 2.8},
+    "SOL": {"sl_mult": 1.5, "tp_mult": 3.0},
+    "AVAX": {"sl_mult": 1.5, "tp_mult": 3.0},
+    "XRP": {"sl_mult": 1.5, "tp_mult": 3.0},
+    "LINK": {"sl_mult": 1.5, "tp_mult": 3.0},
+    "EGLD": {"sl_mult": 1.8, "tp_mult": 3.5},
+    "DOGE": {"sl_mult": 2.0, "tp_mult": 4.0},
+    "default": {"sl_mult": 1.5, "tp_mult": 3.0}
+}
+
+def get_coin_profile(symbol: str) -> dict:
+    base = symbol.split("/")[0] if "/" in symbol else symbol
+    return VOLATILITY_PROFILES.get(base, VOLATILITY_PROFILES["default"])
+
+TRAIL_ACTIVATION = 0.5
+TRAIL_DISTANCE = 1.0
+
 
 def get_current_price(symbol: str) -> float:
     """Binance'den anlık fiyat al."""
@@ -139,12 +159,18 @@ def detect_signal(symbol: str, timeframe: str = "1h") -> dict | None:
     crossed_up = prev_ema12 <= prev_ema26 and cur_ema12 > cur_ema26
     crossed_down = prev_ema12 >= prev_ema26 and cur_ema12 < cur_ema26
 
+    # Coin'in volatilite profilini al
+    profile = get_coin_profile(symbol)
+    sl_mult = profile["sl_mult"]
+    tp_mult = profile["tp_mult"]
+
     if crossed_up and cur_dir == 1:
-        sl = cur_price - SL_ATR_MULT * cur_atr
-        tp = cur_price + TP_ATR_MULT * cur_atr
+        sl = cur_price - sl_mult * cur_atr
+        tp = cur_price + tp_mult * cur_atr
         reason = (
             f"EMA12 ({round(cur_ema12, 2)}) EMA26'yı ({round(cur_ema26, 2)}) yukarı kesti\n"
-            f"SuperTrend POZİTİF — fiyat destek üstünde ({format_price(cur_st)})"
+            f"SuperTrend POZİTİF — fiyat destek üstünde ({format_price(cur_st)})\n"
+            f"SL: {sl_mult}xATR | TP: {tp_mult}xATR | R:R 1:{tp_mult/sl_mult:.1f}"
         )
         return {
             "signal_type": "BUY",
@@ -152,6 +178,8 @@ def detect_signal(symbol: str, timeframe: str = "1h") -> dict | None:
             "stop_loss": sl,
             "take_profit": tp,
             "atr": cur_atr,
+            "sl_mult": sl_mult,
+            "tp_mult": tp_mult,
             "reason": reason,
             "ema12": round(cur_ema12, 4),
             "ema26": round(cur_ema26, 4),
@@ -160,11 +188,12 @@ def detect_signal(symbol: str, timeframe: str = "1h") -> dict | None:
         }
 
     if crossed_down and cur_dir == -1:
-        sl = cur_price + SL_ATR_MULT * cur_atr
-        tp = cur_price - TP_ATR_MULT * cur_atr
+        sl = cur_price + sl_mult * cur_atr
+        tp = cur_price - tp_mult * cur_atr
         reason = (
             f"EMA12 ({round(cur_ema12, 2)}) EMA26'yı ({round(cur_ema26, 2)}) aşağı kesti\n"
-            f"SuperTrend NEGATİF — fiyat direnç altında ({format_price(cur_st)})"
+            f"SuperTrend NEGATİF — fiyat direnç altında ({format_price(cur_st)})\n"
+            f"SL: {sl_mult}xATR | TP: {tp_mult}xATR | R:R 1:{tp_mult/sl_mult:.1f}"
         )
         return {
             "signal_type": "SELL",
@@ -172,6 +201,8 @@ def detect_signal(symbol: str, timeframe: str = "1h") -> dict | None:
             "stop_loss": sl,
             "take_profit": tp,
             "atr": cur_atr,
+            "sl_mult": sl_mult,
+            "tp_mult": tp_mult,
             "reason": reason,
             "ema12": round(cur_ema12, 4),
             "ema26": round(cur_ema26, 4),
