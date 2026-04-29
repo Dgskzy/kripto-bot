@@ -5,6 +5,7 @@ from flask import Flask
 from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from funding_filter import get_funding_info
+from trailing_stop import calc_trailing_sl
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -798,8 +799,8 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                         f"{icon} *{action} SİNYALİ — {symbol}* {strength_emoji} {quality}\n"
                         f"⏱ Zaman: {timeframe}\n\n"
                         f"💵 Giriş Fiyatı: *{format_price(sig['entry_price'])}*\n"
-                        f"🛑 Stop Loss: *{format_price(sig['stop_loss'])}* (1.5×ATR)\n"
-                        f"🎯 Take Profit: *{format_price(sig['take_profit'])}* (3×ATR)\n"
+                        f"🛑 Stop Loss: *{format_price(sig['stop_loss'])}* ({sig.get('sl_mult', 1.5)}×ATR)\n"
+                        f"🎯 Take Profit: *{format_price(sig['take_profit'])}* ({sig.get('tp_mult', 3.0)}×ATR)\n"
                         f"📏 ATR: `{format_price(sig['atr'])}`\n"
                         f"📊 R:K Oranı: 1:2\n\n"
                         f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"  # ← YENİ SATIR
@@ -855,6 +856,21 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
     for s in signals:
         try:
             cur_price = get_current_price(s["symbol"])
+            
+            # --- TRAILING STOP ---
+            new_sl = calc_trailing_sl(
+                signal_type=s["signal_type"],
+                entry_price=s["entry_price"],
+                current_price=cur_price,
+                atr=s.get("atr", 0),
+                original_sl=s["stop_loss"],
+                original_tp=s["take_profit"],
+                sl_mult=s.get("sl_mult", 1.5),
+            )
+            if new_sl != s["stop_loss"]:
+                s["stop_loss"] = new_sl
+            # --- TRAILING STOP SONU ---
+            
             status = check_and_update_signal(s, cur_price)
             if status == "open":
                 continue
