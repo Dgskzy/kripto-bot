@@ -12,6 +12,7 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
+import ccxt
 from signals import (
     get_current_price,
     calculate_signals,
