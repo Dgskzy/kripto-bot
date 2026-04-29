@@ -1,6 +1,9 @@
 import json
 import os
 
+# Varsayılan coin listesi (Render sıfırlansa bile kaybolmaz!)
+DEFAULT_COINS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "EGLD/USDT"]
+
 WATCHLIST_FILE = os.path.join(os.path.dirname(__file__), "watchlist.json")
 
 VALID_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
@@ -21,7 +24,9 @@ def _save(data: dict):
 def _user(data: dict, user_id: int) -> dict:
     uid = str(user_id)
     if uid not in data:
-        data[uid] = {"coins": [], "timeframe": "1h", "last_signals": {}}
+        # Varsayılan coin listesiyle başla
+        data[uid] = {"coins": DEFAULT_COINS.copy(), "timeframe": "1h", "last_signals": {}}
+        _save(data)  # Hemen kaydet ki kalıcı olsun
     return data[uid]
 
 
