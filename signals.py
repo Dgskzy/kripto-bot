@@ -278,10 +278,15 @@ def calculate_signals(symbol: str, timeframe: str = "1h") -> dict:
     else:
         overall = "🟡 BEKLE (Uyumsuzluk)"
 
-    sl_buy = close - SL_ATR_MULT * atr_val
-    tp_buy = close + TP_ATR_MULT * atr_val
-    sl_sell = close + SL_ATR_MULT * atr_val
-    tp_sell = close - TP_ATR_MULT * atr_val
+    # Coin'in volatilite profilini al
+    profile = get_coin_profile(symbol)
+    sl_mult = profile["sl_mult"]
+    tp_mult = profile["tp_mult"]
+
+    sl_buy = close - sl_mult * atr_val
+    tp_buy = close + tp_mult * atr_val
+    sl_sell = close + sl_mult * atr_val
+    tp_sell = close - tp_mult * atr_val
 
     return {
         "symbol": symbol,
