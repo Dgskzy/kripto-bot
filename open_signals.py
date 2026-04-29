@@ -28,6 +28,7 @@ def add_signal(
     atr: float,
     timeframe: str,
     reason: str,
+    strength: str = "WEAK",   # ⬅️ YENİ parametre
 ) -> dict:
     signals = _load()
     signal = {
@@ -45,6 +46,7 @@ def add_signal(
         "close_price": None,
         "pnl_pct": None,
         "reason": reason,
+        "strength": strength,      # ⬅️ YENİ alan
     }
     signals.append(signal)
     _save(signals)
