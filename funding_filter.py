@@ -1,60 +1,59 @@
 import ccxt
-import os
 
 exchange = ccxt.binance()
 
-def get_dynamic_funding_threshold(symbol: str):
+def get_funding_info(symbol: str) -> dict:
     """
-    Binance'den sembolün resmi min/max funding rate değerlerini çeker.
-    """
-    try:
-        binance_symbol = symbol.replace("/", "")
-        market = exchange.market(binance_symbol)
-        
-        max_rate = float(market['info'].get('maxFundingRate', 0))
-        min_rate = float(market['info'].get('minFundingRate', 0))
-        
-        return {
-            "max_rate": max_rate,
-            "min_rate": min_rate
-        }
-    except Exception as e:
-        print(f"Sınır değerleri alınamadı: {e}")
-        return None
-
-def analyze_funding_risk(signal_type, symbol):
-    """
-    Güncel funding rate'in, sembolün kendi eşiklerine göre risk analizini yapar.
+    Binance'den güncel funding rate bilgisini çeker.
+    Sinyal engellemez, sadece bilgi verir.
     """
     try:
         binance_symbol = symbol.replace("/", "")
         ticker_data = exchange.fetch_funding_rate(binance_symbol)
-        current_rate = float(ticker_data[0] if isinstance(ticker_data, tuple) else ticker_data['fundingRate'])
         
-        thresholds = get_dynamic_funding_threshold(symbol)
-        if not thresholds:
-            return "normal", "Eşik bilgisi alınamadı"
-
-        if signal_type == "BUY":
-            # Örnek: Güncel oran, resmi alt eşiğin %60'ından daha negatifse aşırı short vardır.
-            if thresholds['min_rate'] < 0 and current_rate <= thresholds['min_rate'] * 0.6:
-                return "block", f"Aşırı Short (Funding: %{current_rate*100:.2f}, Limit: %{thresholds['min_rate']*100:.2f})"
-            elif thresholds['min_rate'] < 0 and current_rate <= thresholds['min_rate'] * 0.3:
-                return "strong", f"Short Ağırlıklı (Funding: %{current_rate*100:.2f})"
-            elif thresholds['max_rate'] > 0 and current_rate >= thresholds['max_rate'] * 0.6:
-                return "block", f"Aşırı Long Riski (Funding: %{current_rate*100:.2f}, Limit: %{thresholds['max_rate']*100:.2f})"
-            else:
-                return "normal", "Funding dengeli"
-
-        elif signal_type == "SELL":
-            if thresholds['max_rate'] > 0 and current_rate >= thresholds['max_rate'] * 0.6:
-                return "block", f"Aşırı Long (Funding: %{current_rate*100:.2f}, Limit: %{thresholds['max_rate']*100:.2f})"
-            elif thresholds['max_rate'] > 0 and current_rate >= thresholds['max_rate'] * 0.3:
-                return "strong", f"Long Ağırlıklı (Funding: %{current_rate*100:.2f})"
-            elif thresholds['min_rate'] < 0 and current_rate <= thresholds['min_rate'] * 0.6:
-                return "block", f"Aşırı Short Riski (Funding: %{current_rate*100:.2f}, Limit: %{thresholds['min_rate']*100:.2f})"
-            else:
-                return "normal", "Funding dengeli"
+        # fetch_funding_rate bazen liste döner
+        if isinstance(ticker_data, list):
+            ticker_data = ticker_data[0]
+        
+        rate = float(ticker_data["fundingRate"]) * 100  # Yüzde
+        
+        # Coin'in kendi limitlerini al
+        market = exchange.market(binance_symbol)
+        max_rate = float(market['info'].get('maxFundingRate', 0.01)) * 100
+        min_rate = float(market['info'].get('minFundingRate', -0.01)) * 100
+        
+        # Yoruma göre ikon
+        if rate >= max_rate * 0.6:
+            icon = "🔴"
+            text = "Aşırı LONG"
+        elif rate >= max_rate * 0.3:
+            icon = "🟠"
+            text = "Long ağırlıklı"
+        elif rate <= min_rate * 0.6:
+            icon = "🟢"
+            text = "Aşırı SHORT"
+        elif rate <= min_rate * 0.3:
+            icon = "🟢"
+            text = "Short ağırlıklı"
+        else:
+            icon = "🟡"
+            text = "Dengeli"
+        
+        return {
+            "rate": round(rate, 4),
+            "icon": icon,
+            "text": text,
+            "max_limit": round(max_rate, 2),
+            "min_limit": round(min_rate, 2),
+        }
+    except Exception as e:
+        return {
+            "rate": 0,
+            "icon": "⚪",
+            "text": f"Veri yok",
+            "max_limit": 0,
+            "min_limit": 0,
+        }
 
     except Exception as e:
         print(f"Funding analiz hatası: {e}")
