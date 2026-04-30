@@ -268,19 +268,24 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Funding rate bilgisini çek
         funding = get_funding_info(symbol)
         
-        # AI filtresi için sinyal verisini hazırla
-        ai_signal_data = {
-            "entry_price": s["price"],
-            "ema12": s["ema12"],
-            "ema26": s["ema26"],
-            "rsi": s["rsi"],
-            "atr": s["atr"],
-            "supertrend_dir": 1 if "POZİTİF" in s["supertrend_text"] else -1,
-            "signal_type": "BUY" if "AL" in s["overall"] else "SELL" if "SAT" in s["overall"] else "NEUTRAL",
-            "sl_mult": 1.5,
-            "tp_mult": 3.0,
-        }
-        ai_result = ai_filter.predict(ai_signal_data)
+        # AI filtresi (henüz eğitilmediyse hata verme)
+        ai_text = ""
+        try:
+            ai_signal_data = {
+                "entry_price": s["price"],
+                "ema12": s["ema12"],
+                "ema26": s["ema26"],
+                "rsi": s["rsi"],
+                "atr": s["atr"],
+                "supertrend_dir": 1 if "POZİTİF" in s["supertrend_text"] else -1,
+                "signal_type": "BUY" if "AL" in s["overall"] else "SELL" if "SAT" in s["overall"] else "NEUTRAL",
+                "sl_mult": 1.5,
+                "tp_mult": 3.0,
+            }
+            ai_result = ai_filter.predict(ai_signal_data)
+            ai_text = f"🤖 *AI Onay:* `%{ai_result['probability']}` (`{ai_result['confidence']}`)\n\n"
+        except Exception as e:
+            logger.warning(f"AI filter error: {e}")
 
         text = (
             f"📊 *{s['symbol']} — Teknik Analiz*\n"
@@ -301,7 +306,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"SAT için → SL: `{format_price(s['sl_sell'])}` | TP: `{format_price(s['tp_sell'])}`\n\n"
             f"RSI (14): `{s['rsi']}`\n"
             f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n"
-            f"🤖 *AI Onay:* %{ai_result['probability']} ({ai_result['confidence']})\n\n"
+            f"{ai_text}"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
         await msg.edit_text(text, parse_mode="Markdown")
