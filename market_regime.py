@@ -51,33 +51,42 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
         returns = close.pct_change().dropna()
         recent_volatility = float(returns.tail(20).std()) * 100
         
-        # REJİM KARARI
-        if current_adx > 25 and abs(ema_slope) > 0.5:
-            # Güçlü trend
+            # REJİM KARARI (DÜZELTİLMİŞ)
+        if current_adx > 40:
+            # Çok güçlü trend
             regime = "TREND"
-            confidence = min(0.9, current_adx / 50)
+            confidence = 0.9
             if ema_slope > 0:
-                description = f"Yükseliş trendi (ADX: {current_adx:.1f}) — Sinyaller güvenilir"
+                description = f"💪 Güçlü yükseliş trendi (ADX: {current_adx:.1f})"
             else:
-                description = f"Düşüş trendi (ADX: {current_adx:.1f}) — Sinyaller güvenilir"
-                
-        elif recent_volatility > 3.0 or volatility > 2.0:
-            # Aşırı volatil
-            regime = "VOLATILE"
-            confidence = min(0.9, recent_volatility / 5)
-            description = f"Yüksek volatilite (%{volatility:.1f}) — Dikkatli olun"
+                description = f"💪 Güçlü düşüş trendi (ADX: {current_adx:.1f})"
             
-        elif price_range_pct < 3.0 and current_adx < 20:
+        elif current_adx > 25:
+            # Orta trend
+            regime = "TREND"
+            confidence = 0.7
+            if ema_slope > 0:
+                description = f"✅ Yükseliş trendi (ADX: {current_adx:.1f})"
+            else:
+                description = f"✅ Düşüş trendi (ADX: {current_adx:.1f})"
+            
+        elif current_adx > 20:
+            # Zayıf trend
+            regime = "TREND"
+            confidence = 0.5
+            description = f"⚠️ Zayıf trend (ADX: {current_adx:.1f}) — Dikkatli ol"
+        
+        elif price_range_pct < 3.0:
             # Yatay piyasa
             regime = "RANGE"
             confidence = 0.7
-            description = f"Yatay piyasa (ADX: {current_adx:.1f}) — Sinyaller güvenilmez"
-            
+            description = f"🚫 Yatay piyasa (ADX: {current_adx:.1f}) — Bekle"
+        
         else:
             # Belirsiz
             regime = "TREND"
-            confidence = 0.5
-            description = "Zayıf trend — Seçici olun"
+            confidence = 0.4
+            description = f"⚪ Belirsiz (ADX: {current_adx:.1f})"
         
         return {
             "regime": regime,
