@@ -7,6 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from funding_filter import get_funding_info
 from trailing_stop import calc_trailing_sl
 from ai_filter import ai_filter
+from market_regime import detect_market_regime, should_trade
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -265,6 +266,10 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text(f"⏳ {symbol} analiz ediliyor...")
         s = calculate_signals(symbol, timeframe)
 
+         # Piyasa rejimi tespiti
+        regime = detect_market_regime(symbol, timeframe)
+        trade_ok, regime_msg = should_trade(regime)
+
         # Funding rate bilgisini çek
         funding = get_funding_info(symbol)
         
@@ -307,6 +312,8 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"RSI (14): `{s['rsi']}`\n"
             f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n"
             f"{ai_text}"
+            f"📈 *Piyasa Rejimi:* {regime['regime']} (ADX: {regime['adx']})\n"
+            f"   {regime_msg}\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
         await msg.edit_text(text, parse_mode="Markdown")
@@ -759,6 +766,11 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 if quality == "RANGE":
                     continue  # bu sinyali tamamen atla, bildirim gönderme
                 # ------------------------
+                # --- PİYASA REJİMİ (SADECE BİLGİ) ---
+                regime = detect_market_regime(symbol, timeframe)
+                regime_text = f"📈 *Piyasa:* {regime['regime']} (ADX: {regime['adx']})\n"
+                # ----------------------------------------
+                
                 last = get_last_signal(user_id, symbol)
 
                 # Aynı yön → spam engelle, atla
@@ -825,6 +837,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                         f"📏 ATR: `{format_price(sig['atr'])}`\n"
                         f"📊 R:K Oranı: 1:2\n\n"
                         f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"  # ← YENİ SATIR
+                        f"{regime_text}"
                         f"📝 *Sebep:*\n{sig['reason']}\n\n"
                         f"Signal ID: `{saved['id']}`\n"
                         f"⚠️ _Yatırım tavsiyesi değildir._"
