@@ -30,7 +30,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     
     # Geçmiş veriyi çek
     since = exchange.parse8601((datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ"))
-    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=1000)
+    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=2000)
     
     df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
