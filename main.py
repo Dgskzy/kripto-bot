@@ -115,7 +115,22 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = run_backtest(symbol, "1h", days)
         
         if "error" in result:
-            await msg.edit_text(f"❌ {result['error']}")
+            if "debug" in result:
+                # Debug bilgilerini göster
+                d = result["debug"]
+                debug_text = (
+                    f"❌ {result['error']}\n\n"
+                    f"🔍 *Debug Bilgileri:*\n"
+                    f"📊 Toplam bar: {d['total_bars']}\n"
+                    f"📅 Veri: {d['data_start'][:10]} → {d['data_end'][:10]}\n"
+                    f"⬆️ Cross Up: {d['cross_up_count']}\n"
+                    f"⬇️ Cross Down: {d['cross_down_count']}\n"
+                    f"🟢 ST Up: {d['super_trend_up']}\n"
+                    f"🔴 ST Down: {d['super_trend_down']}"
+                )
+                await msg.edit_text(debug_text, parse_mode="Markdown")
+            else:
+                await msg.edit_text(f"❌ {result['error']}")
             return
         
         text = (
