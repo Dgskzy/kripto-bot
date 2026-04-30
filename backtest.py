@@ -70,8 +70,9 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 trades.append({"type": "SELL", "entry": entry_price, "exit": take_profit, "result": "TP", "pnl": round(pnl, 2), "entry_time": entry_time, "exit_time": df.index[i]})
                 position = None
         
-        # Yeni sinyal
+        # Yeni sinyal (SADECE TREND YÖNÜNDE)
         if position is None:
+            # SuperTrend POZİTİF + EMA yukarı kesişim = AL
             if crossed_up and cur_dir == 1:
                 entry_price = cur_price
                 original_sl = cur_price - sl_mult * cur_atr
@@ -79,6 +80,8 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 take_profit = cur_price + tp_mult * cur_atr
                 position = "BUY"
                 entry_time = df.index[i]
+                
+            # SuperTrend NEGATİF + EMA aşağı kesişim = SAT
             elif crossed_down and cur_dir == -1:
                 entry_price = cur_price
                 original_sl = cur_price + sl_mult * cur_atr
@@ -86,6 +89,8 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 take_profit = cur_price - tp_mult * cur_atr
                 position = "SELL"
                 entry_time = df.index[i]
+            
+            # Diğer tüm durumlar (uyumsuzluk) → SİNYAL YOK
     
     if not trades:
         return {"error": f"Sinyal yok ({len(df)} bar, {days} gün)"}
