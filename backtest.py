@@ -223,6 +223,34 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     running_max = np.maximum.accumulate(cumulative)
     drawdown = cumulative - running_max
     max_drawdown = round(abs(min(drawdown)), 2)
+
+        # DEBUG: Eğer hiç sinyal yoksa nedenini göster
+    if len(trades) == 0:
+        debug_info = {
+            "error": "Bu periyotta hiç sinyal oluşmadı",
+            "debug": {
+                "total_bars": len(df),
+                "data_start": str(df.index[0]) if len(df) > 0 else "N/A",
+                "data_end": str(df.index[-1]) if len(df) > 0 else "N/A",
+                "cross_up_count": 0,
+                "cross_down_count": 0,
+                "super_trend_up": 0,
+                "super_trend_down": 0,
+            }
+        }
+        
+        # Kesişimleri say
+        for i in range(50, len(df) - 1):
+            if ema12.iloc[i-1] <= ema26.iloc[i-1] and ema12.iloc[i] > ema26.iloc[i]:
+                debug_info["debug"]["cross_up_count"] += 1
+            if ema12.iloc[i-1] >= ema26.iloc[i-1] and ema12.iloc[i] < ema26.iloc[i]:
+                debug_info["debug"]["cross_down_count"] += 1
+            if direction.iloc[i] == 1:
+                debug_info["debug"]["super_trend_up"] += 1
+            elif direction.iloc[i] == -1:
+                debug_info["debug"]["super_trend_down"] += 1
+        
+        return debug_info
     
     return {
         "symbol": symbol,
