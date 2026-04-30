@@ -174,15 +174,16 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 entry_time = df.index[i]
                 
             elif crossed_down and cur_dir == -1:
-                # --- CVD/OI FİLTRESİ ---
+                # --- CVD/OI FİLTRESİ (sadece canlı veri varsa) ---
                 try:
                     cvd_oi_df = get_cvd_oi_data(symbol, timeframe, limit=120)
                     if cvd_oi_df is not None and not cvd_oi_df.empty:
-                        quality = classify_signal("SELL", cvd_oi_df["cvd"], cvd_oi_df["oi"])
+                        quality = classify_signal("BUY", cvd_oi_df["cvd"], cvd_oi_df["oi"])
                         if quality == "RANGE":
                             filtered_count += 1
                             continue
                 except:
+                    # Veri yoksa filtreleme yapma, sinyale izin ver
                     pass
                 
                 # --- PİYASA REJİMİ FİLTRESİ ---
