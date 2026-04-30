@@ -56,6 +56,14 @@ def add_signal(
 def get_open_signals(user_id: int) -> list:
     return [s for s in _load() if s["user_id"] == user_id and s["status"] == "open"]
 
+def _update_signal_sl(signal_id: str, new_sl: float):
+    """Sinyalin Stop Loss seviyesini günceller ve dosyaya kaydeder."""
+    signals = _load()
+    for s in signals:
+        if s["id"] == signal_id and s["status"] == "open":
+            s["stop_loss"] = round(new_sl, 6)
+    _save(signals)
+
 
 def get_all_open_signals() -> list:
     return [s for s in _load() if s["status"] == "open"]
