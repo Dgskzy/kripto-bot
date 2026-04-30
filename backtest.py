@@ -4,8 +4,9 @@ import numpy as np
 from datetime import datetime, timedelta
 from signals import (
     calc_ema, calc_supertrend, calc_rsi, calc_atr,
-    SUPERTREND_PERIOD, SUPERTREND_MULT, SL_ATR_MULT, TP_ATR_MULT
+    SUPERTREND_PERIOD, SUPERTREND_MULT, get_coin_profile
 )
+from trailing_stop import calc_trailing_sl
 
 exchange = ccxt.binance()
 
@@ -13,24 +14,15 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     """
     Geçmiş verilerde stratejiyi test eder.
     
-    Parametreler:
-        symbol: "BTC/USDT", "ETH/USDT" vb.
-        timeframe: "1h", "4h", "1d"
-        days: Kaç günlük veri çekilecek (max 90)
-    
-    Döndürdüğü:
-        {
-            "total_signals": toplam sinyal sayısı,
-            "tp_count": TP isabet sayısı,
-            "sl_count": SL isabet sayısı,
-            "win_rate": kazanma oranı %,
-            "total_pnl": toplam kâr/zarar %,
-            "avg_win": ortalama kâr %,
-            "avg_loss": ortalama zarar %,
-            "max_drawdown": en büyük düşüş %,
-            "trades": tüm işlemler listesi
-        }
+    Yeni özellikler:
+    - Coin bazlı dinamik SL/TP çarpanları
+    - Trailing stop (TP'nin %50'sinde devreye girer)
     """
+    # Coin profilini al
+    profile = get_coin_profile(symbol)
+    sl_mult = profile["sl_mult"]
+    tp_mult = profile["tp_mult"]
+    
     # Geçmiş veriyi çek
     since = exchange.parse8601((datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ"))
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=1000)
@@ -48,15 +40,17 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     supertrend, direction, atr = calc_supertrend(df)
     
     trades = []
-    position = None  # None, "BUY", "SELL"
+    position = None
     entry_price = 0
     stop_loss = 0
     take_profit = 0
+    original_sl = 0
     entry_time = None
     
-    # Her barı tara (ilk 50 bar'dan sonra başla)
     for i in range(50, len(df) - 1):
         cur_price = float(df["close"].iloc[i])
+        cur_high = float(df["high"].iloc[i])
+        cur_low = float(df["low"].iloc[i])
         cur_ema12 = ema12.iloc[i]
         cur_ema26 = ema26.iloc[i]
         prev_ema12 = ema12.iloc[i - 1]
@@ -67,9 +61,20 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         crossed_up = prev_ema12 <= prev_ema26 and cur_ema12 > cur_ema26
         crossed_down = prev_ema12 >= prev_ema26 and cur_ema12 < cur_ema26
         
-        # Açık pozisyon varsa SL/TP kontrolü
+        # Açık pozisyon varsa - TRAILING STOP ile SL/TP kontrolü
         if position == "BUY":
-            if float(df["low"].iloc[i]) <= stop_loss:
+            # Trailing stop ile SL'i güncelle
+            stop_loss = calc_trailing_sl(
+                signal_type="BUY",
+                entry_price=entry_price,
+                current_price=cur_price,
+                atr=cur_atr,
+                original_sl=original_sl,
+                original_tp=take_profit,
+                sl_mult=sl_mult,
+            )
+            
+            if cur_low <= stop_loss:
                 pnl = (stop_loss - entry_price) / entry_price * 100
                 trades.append({
                     "type": "BUY",
@@ -81,7 +86,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                     "exit_time": df.index[i]
                 })
                 position = None
-            elif float(df["high"].iloc[i]) >= take_profit:
+            elif cur_high >= take_profit:
                 pnl = (take_profit - entry_price) / entry_price * 100
                 trades.append({
                     "type": "BUY",
@@ -95,7 +100,18 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 position = None
                 
         elif position == "SELL":
-            if float(df["high"].iloc[i]) >= stop_loss:
+            # Trailing stop ile SL'i güncelle
+            stop_loss = calc_trailing_sl(
+                signal_type="SELL",
+                entry_price=entry_price,
+                current_price=cur_price,
+                atr=cur_atr,
+                original_sl=original_sl,
+                original_tp=take_profit,
+                sl_mult=sl_mult,
+            )
+            
+            if cur_high >= stop_loss:
                 pnl = (entry_price - stop_loss) / entry_price * 100
                 trades.append({
                     "type": "SELL",
@@ -107,7 +123,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                     "exit_time": df.index[i]
                 })
                 position = None
-            elif float(df["low"].iloc[i]) <= take_profit:
+            elif cur_low <= take_profit:
                 pnl = (entry_price - take_profit) / entry_price * 100
                 trades.append({
                     "type": "SELL",
@@ -123,18 +139,18 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         # Yeni sinyal kontrolü (sadece pozisyon yoksa)
         if position is None:
             if crossed_up and cur_dir == 1:
-                # AL sinyali
                 entry_price = cur_price
-                stop_loss = cur_price - SL_ATR_MULT * cur_atr
-                take_profit = cur_price + TP_ATR_MULT * cur_atr
+                original_sl = cur_price - sl_mult * cur_atr
+                stop_loss = original_sl
+                take_profit = cur_price + tp_mult * cur_atr
                 position = "BUY"
                 entry_time = df.index[i]
                 
             elif crossed_down and cur_dir == -1:
-                # SAT sinyali
                 entry_price = cur_price
-                stop_loss = cur_price + SL_ATR_MULT * cur_atr
-                take_profit = cur_price - TP_ATR_MULT * cur_atr
+                original_sl = cur_price + sl_mult * cur_atr
+                stop_loss = original_sl
+                take_profit = cur_price - tp_mult * cur_atr
                 position = "SELL"
                 entry_time = df.index[i]
     
@@ -145,7 +161,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     tp_trades = [t for t in trades if t["result"] == "TP"]
     sl_trades = [t for t in trades if t["result"] == "SL"]
     total = len(trades)
-    win_rate = len(tp_trades) / total * 100
+    win_rate = len(tp_trades) / total * 100 if total > 0 else 0
     
     all_pnl = [t["pnl"] for t in trades]
     total_pnl = round(sum(all_pnl), 2)
@@ -162,6 +178,8 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         "symbol": symbol,
         "timeframe": timeframe,
         "period": f"{days} gün",
+        "sl_mult": sl_mult,
+        "tp_mult": tp_mult,
         "total_signals": total,
         "tp_count": len(tp_trades),
         "sl_count": len(sl_trades),
@@ -170,5 +188,5 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         "avg_win": avg_win,
         "avg_loss": avg_loss,
         "max_drawdown": max_drawdown,
-        "trades": trades[-10:]  # Son 10 işlem
+        "trades": trades[-10:]
     }
