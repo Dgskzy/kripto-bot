@@ -47,6 +47,7 @@ from open_signals import (
     check_and_update_signal,
     get_stats,
     get_history,
+    _update_signal_sl, 
 )
 
 logging.basicConfig(
