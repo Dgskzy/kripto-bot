@@ -7,6 +7,8 @@ from signals import (
     SUPERTREND_PERIOD, SUPERTREND_MULT, get_coin_profile
 )
 from trailing_stop import calc_trailing_sl
+from signal_filter import get_cvd_oi_data, classify_signal
+from market_regime import detect_market_regime, should_trade
 
 exchange = ccxt.binance()
 
@@ -14,7 +16,10 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     """
     Geçmiş verilerde stratejiyi test eder.
     
-    Yeni özellikler:
+    Filtreler:
+    - EMA + SuperTrend temel sinyal
+    - CVD/OI filtresi (RANGE sinyalleri eler)
+    - Piyasa Rejimi filtresi (yatay piyasada sinyali engeller)
     - Coin bazlı dinamik SL/TP çarpanları
     - Trailing stop (TP'nin %50'sinde devreye girer)
     """
@@ -40,6 +45,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
     supertrend, direction, atr = calc_supertrend(df)
     
     trades = []
+    filtered_count = 0  # Filtre tarafından elenen sinyal sayısı
     position = None
     entry_price = 0
     stop_loss = 0
@@ -63,7 +69,6 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         
         # Açık pozisyon varsa - TRAILING STOP ile SL/TP kontrolü
         if position == "BUY":
-            # Trailing stop ile SL'i güncelle
             stop_loss = calc_trailing_sl(
                 signal_type="BUY",
                 entry_price=entry_price,
@@ -100,7 +105,6 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 position = None
                 
         elif position == "SELL":
-            # Trailing stop ile SL'i güncelle
             stop_loss = calc_trailing_sl(
                 signal_type="SELL",
                 entry_price=entry_price,
@@ -139,6 +143,29 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         # Yeni sinyal kontrolü (sadece pozisyon yoksa)
         if position is None:
             if crossed_up and cur_dir == 1:
+                # --- CVD/OI FİLTRESİ ---
+                try:
+                    cvd_oi_df = get_cvd_oi_data(symbol, timeframe, limit=120)
+                    if cvd_oi_df is not None and not cvd_oi_df.empty:
+                        quality = classify_signal("BUY", cvd_oi_df["cvd"], cvd_oi_df["oi"])
+                        if quality == "RANGE":
+                            filtered_count += 1
+                            continue
+                except:
+                    pass
+                
+                # --- PİYASA REJİMİ FİLTRESİ ---
+                try:
+                    regime = detect_market_regime(symbol, timeframe)
+                    trade_ok, _ = should_trade(regime)
+                    if not trade_ok:
+                        filtered_count += 1
+                        continue
+                except:
+                    pass
+                # -------------------------------
+                
+                # AL sinyali
                 entry_price = cur_price
                 original_sl = cur_price - sl_mult * cur_atr
                 stop_loss = original_sl
@@ -147,6 +174,29 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
                 entry_time = df.index[i]
                 
             elif crossed_down and cur_dir == -1:
+                # --- CVD/OI FİLTRESİ ---
+                try:
+                    cvd_oi_df = get_cvd_oi_data(symbol, timeframe, limit=120)
+                    if cvd_oi_df is not None and not cvd_oi_df.empty:
+                        quality = classify_signal("SELL", cvd_oi_df["cvd"], cvd_oi_df["oi"])
+                        if quality == "RANGE":
+                            filtered_count += 1
+                            continue
+                except:
+                    pass
+                
+                # --- PİYASA REJİMİ FİLTRESİ ---
+                try:
+                    regime = detect_market_regime(symbol, timeframe)
+                    trade_ok, _ = should_trade(regime)
+                    if not trade_ok:
+                        filtered_count += 1
+                        continue
+                except:
+                    pass
+                # -------------------------------
+                
+                # SAT sinyali
                 entry_price = cur_price
                 original_sl = cur_price + sl_mult * cur_atr
                 stop_loss = original_sl
@@ -181,6 +231,7 @@ def run_backtest(symbol: str, timeframe: str = "1h", days: int = 30) -> dict:
         "sl_mult": sl_mult,
         "tp_mult": tp_mult,
         "total_signals": total,
+        "filtered_signals": filtered_count,
         "tp_count": len(tp_trades),
         "sl_count": len(sl_trades),
         "win_rate": round(win_rate, 1),
