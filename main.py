@@ -907,7 +907,6 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
     for s in signals:
         try:
             cur_price = get_current_price(s["symbol"])
-            
             # --- TRAILING STOP ---
             new_sl = calc_trailing_sl(
                 signal_type=s["signal_type"],
@@ -920,6 +919,9 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             )
             if new_sl != s["stop_loss"]:
                 s["stop_loss"] = new_sl
+                # ⬇️ JSON DOSYASINA KAYDET ⬇️
+                # Sinyali güncelle (close_signal değil, sadece SL güncellemesi)
+                _update_signal_sl(s["id"], new_sl)
             # --- TRAILING STOP SONU ---
             
             status = check_and_update_signal(s, cur_price)
