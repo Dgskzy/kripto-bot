@@ -6,6 +6,7 @@ from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from funding_filter import get_funding_info
 from trailing_stop import calc_trailing_sl
+from ai_filter import ai_filter
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -264,8 +265,22 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text(f"⏳ {symbol} analiz ediliyor...")
         s = calculate_signals(symbol, timeframe)
 
-        # Funding rate bilgisini BURADA çek (parantez dışında)
+        # Funding rate bilgisini çek
         funding = get_funding_info(symbol)
+        
+        # AI filtresi için sinyal verisini hazırla
+        ai_signal_data = {
+            "entry_price": s["price"],
+            "ema12": s["ema12"],
+            "ema26": s["ema26"],
+            "rsi": s["rsi"],
+            "atr": s["atr"],
+            "supertrend_dir": 1 if "POZİTİF" in s["supertrend_text"] else -1,
+            "signal_type": "BUY" if "AL" in s["overall"] else "SELL" if "SAT" in s["overall"] else "NEUTRAL",
+            "sl_mult": 1.5,
+            "tp_mult": 3.0,
+        }
+        ai_result = ai_filter.predict(ai_signal_data)
 
         text = (
             f"📊 *{s['symbol']} — Teknik Analiz*\n"
@@ -285,7 +300,8 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"AL için → SL: `{format_price(s['sl_buy'])}` | TP: `{format_price(s['tp_buy'])}`\n"
             f"SAT için → SL: `{format_price(s['sl_sell'])}` | TP: `{format_price(s['tp_sell'])}`\n\n"
             f"RSI (14): `{s['rsi']}`\n"
-            f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"
+            f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n"
+            f"🤖 *AI Onay:* %{ai_result['probability']} ({ai_result['confidence']})\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
         await msg.edit_text(text, parse_mode="Markdown")
