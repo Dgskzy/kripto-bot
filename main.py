@@ -1045,12 +1045,6 @@ def main():
 
     threading.Thread(target=run_flask, daemon=True).start()    
 
-    # Proxy olmadan, ama özel timeout ve bağlantı havuzu ayarlarıyla
-    import httpx
-    httpx_client = httpx.AsyncClient(
-        proxy="http://proxy.server:3128",
-        timeout=30.0,
-    )
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
