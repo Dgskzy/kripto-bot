@@ -25,7 +25,6 @@ from signals import (
     format_price,
     normalize_symbol,
 )
-from signal_filter import get_cvd_oi_data, classify_signal
 from alerts import add_alert, get_user_alerts, get_all_active_alerts, mark_alert_triggered, delete_alert
 from watchlist import (
     add_coin,
@@ -767,23 +766,8 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 sig = detect_signal(symbol, timeframe)
                 if sig is None:
                     continue
-                # --- CVD / OI FİLTRESİ ---
+                # Kalite sabit (CVD/OI kaldırıldı)
                 quality = "WEAK_LONG" if sig["signal_type"] == "BUY" else "WEAK_SHORT"
-                try:
-                    cvd_oi_df = get_cvd_oi_data(symbol, timeframe, limit=120)
-                    if cvd_oi_df is not None and not cvd_oi_df.empty:
-                        quality = classify_signal(sig["signal_type"],
-                                                  cvd_oi_df["cvd"],
-                                                  cvd_oi_df["oi"])
-                    else:
-                        # Veri yoksa varsayılan WEAK ile devam et
-                        pass
-                except Exception as e:
-                    logger.error(f"CVD/OI filter error {symbol}: {e}")
-
-                if quality == "RANGE":
-                    continue  # bu sinyali tamamen atla, bildirim gönderme
-                # ------------------------
                 # --- PİYASA REJİMİ (SADECE BİLGİ) ---
                 regime = detect_market_regime(symbol, timeframe)
                 regime_text = f"📈 *Piyasa:* {regime['regime']} (ADX: {regime['adx']})\n"
