@@ -1,92 +1,83 @@
-import json
 import os
+from pymongo import MongoClient
 
-WATCHLIST_FILE = os.path.join(os.path.dirname(__file__), "watchlist.json")
+MONGODB_URI = os.environ.get("MONGODB_URI")
+client = MongoClient(MONGODB_URI)
+db = client["kripto_bot"]
+col = db["watchlist"]
+
 VALID_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
-
-# Varsayılan coin listesi (Render sıfırlansa bile kaybolmaz!)
 DEFAULT_COINS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "EGLD/USDT"]
 
 
-def _load() -> dict:
-    if not os.path.exists(WATCHLIST_FILE):
-        return {}
-    with open(WATCHLIST_FILE) as f:
-        return json.load(f)
-
-
-def _save(data: dict):
-    with open(WATCHLIST_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def _user(data: dict, user_id: int) -> dict:
+def _get(user_id: int) -> dict:
     uid = str(user_id)
-    if uid not in data:
-        # Varsayılan coin listesiyle başla
-        data[uid] = {"coins": DEFAULT_COINS.copy(), "timeframe": "1h", "last_signals": {}}
-        _save(data)  # Hemen kaydet ki kalıcı olsun
-    return data[uid]
+    doc = col.find_one({"_id": uid})
+    if not doc:
+        doc = {
+            "_id": uid,
+            "coins": DEFAULT_COINS.copy(),
+            "timeframe": "1h",
+            "last_signals": {},
+        }
+        col.insert_one(doc)
+    return doc
 
 
 def get_user_settings(user_id: int) -> dict:
-    data = _load()
-    return _user(data, user_id)
+    return _get(user_id)
 
 
 def add_coin(user_id: int, symbol: str) -> bool:
-    data = _load()
-    u = _user(data, user_id)
-    if symbol in u["coins"]:
+    doc = _get(user_id)
+    if symbol in doc["coins"]:
         return False
-    u["coins"].append(symbol)
-    _save(data)
+    col.update_one({"_id": str(user_id)}, {"$push": {"coins": symbol}})
     return True
 
 
 def remove_coin(user_id: int, symbol: str) -> bool:
-    data = _load()
-    u = _user(data, user_id)
-    if symbol not in u["coins"]:
+    doc = _get(user_id)
+    if symbol not in doc["coins"]:
         return False
-    u["coins"].remove(symbol)
-    u["last_signals"].pop(symbol, None)
-    _save(data)
+    col.update_one(
+        {"_id": str(user_id)},
+        {
+            "$pull": {"coins": symbol},
+            "$unset": {f"last_signals.{symbol}": ""},
+        },
+    )
     return True
 
 
 def set_timeframe(user_id: int, timeframe: str):
-    data = _load()
-    u = _user(data, user_id)
-    u["timeframe"] = timeframe
-    _save(data)
+    _get(user_id)
+    col.update_one({"_id": str(user_id)}, {"$set": {"timeframe": timeframe}})
 
 
 def get_all_users_with_coins() -> list:
-    data = _load()
     result = []
-    for uid, udata in data.items():
-        coins = udata.get("coins", [])
-        # Eğer liste boşsa, varsayılan listeyi kullan
+    for doc in col.find():
+        coins = doc.get("coins", [])
         if not coins:
             coins = DEFAULT_COINS.copy()
         result.append({
-            "user_id": int(uid),
+            "user_id": int(doc["_id"]),
             "coins": coins,
-            "timeframe": udata.get("timeframe", "1h"),
-            "last_signals": udata.get("last_signals", {}),
+            "timeframe": doc.get("timeframe", "1h"),
+            "last_signals": doc.get("last_signals", {}),
         })
     return result
 
 
 def update_last_signal(user_id: int, symbol: str, signal_type: str):
-    data = _load()
-    u = _user(data, user_id)
-    u["last_signals"][symbol] = signal_type
-    _save(data)
+    _get(user_id)
+    col.update_one(
+        {"_id": str(user_id)},
+        {"$set": {f"last_signals.{symbol}": signal_type}},
+    )
 
 
 def get_last_signal(user_id: int, symbol: str) -> str:
-    data = _load()
-    u = _user(data, user_id)
-    return u["last_signals"].get(symbol, "")
+    doc = _get(user_id)
+    return doc.get("last_signals", {}).get(symbol, "")
