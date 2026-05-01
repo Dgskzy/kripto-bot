@@ -330,7 +330,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"RSI (14): `{s['rsi']}`\n"
             f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n"
             f"{ai_text}"
-            f"📈 *Piyasa Rejimi:* {regime['regime']} (ADX: {regime['adx']})\n"
+           f"📈 *Piyasa Rejimi:* {regime['regime']} (Eğim: %{regime['adx']})\n"
             f"   {regime_msg}\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
