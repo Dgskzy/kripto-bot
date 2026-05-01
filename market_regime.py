@@ -18,7 +18,7 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
     
     try:
         # Son 50 bar veriyi çek
-        df = get_ohlcv(symbol, timeframe=timeframe, limit=150)
+        df = get_ohlcv(symbol, timeframe=timeframe, limit=350)
         
         if len(df) < 50:
             return {"regime": "UNKNOWN", "confidence": 0, "adx": 0, 
