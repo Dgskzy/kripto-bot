@@ -837,20 +837,19 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=(
-                        f"{icon} *{action} SİNYALİ — {symbol}* {strength_emoji} {quality}\n"
+                        f"{icon} {action} SİNYALİ — {symbol} {strength_emoji} {quality}\n"
                         f"⏱ Zaman: {timeframe}\n\n"
-                        f"💵 Giriş Fiyatı: *{format_price(sig['entry_price'])}*\n"
-                        f"🛑 Stop Loss: *{format_price(sig['stop_loss'])}* ({sig.get('sl_mult', 1.5)}×ATR)\n"
-                        f"🎯 Take Profit: *{format_price(sig['take_profit'])}* ({sig.get('tp_mult', 3.0)}×ATR)\n"
-                        f"📏 ATR: `{format_price(sig['atr'])}`\n"
+                        f"💵 Giriş Fiyatı: {format_price(sig['entry_price'])}\n"
+                        f"🛑 Stop Loss: {format_price(sig['stop_loss'])} ({sig.get('sl_mult', 1.5)}×ATR)\n"
+                        f"🎯 Take Profit: {format_price(sig['take_profit'])} ({sig.get('tp_mult', 3.0)}×ATR)\n"
+                        f"📏 ATR: {format_price(sig['atr'])}\n"
                         f"📊 R:K Oranı: 1:2\n\n"
-                        f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"  # ← YENİ SATIR
+                        f"📊 Fonlama: %{funding['rate']} {funding['icon']} {funding['text']}\n\n"
                         f"{regime_text}"
-                        f"📝 *Sebep:*\n{sig['reason']}\n\n"
-                        f"Signal ID: `{saved['id']}`\n"
-                        f"⚠️ _Yatırım tavsiyesi değildir._"
+                        f"📝 Sebep:\n{sig['reason']}\n\n"
+                        f"Signal ID: {saved['id']}\n"
+                        f"⚠️ Yatırım tavsiyesi değildir."
                     ),
-                    
                 )
                 logger.info(f"Signal sent: {sig['signal_type']} {symbol} to user {user_id}")
             except Exception as e:
