@@ -768,9 +768,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 # Kalite sabit (CVD/OI kaldırıldı)
                 quality = "WEAK_LONG" if sig["signal_type"] == "BUY" else "WEAK_SHORT"
                 
-                # --- DEBUG: Tüm sinyalleri geçir (1 günlük test) ---
-                logger.info(f"🔔 DEBUG: Signal found - {sig['signal_type']} {symbol} - Sending...")
-                # --------------------------------------------------------
+
                 # --- PİYASA REJİMİ (SADECE BİLGİ) ---
                 regime = detect_market_regime(symbol, timeframe)
                 regime_text = f"📈 Piyasa: {regime['regime']} (Eğim: %{regime['adx']})\n"
