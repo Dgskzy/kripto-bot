@@ -66,13 +66,16 @@ def get_all_users_with_coins() -> list:
     data = _load()
     result = []
     for uid, udata in data.items():
-        if udata.get("coins"):
-            result.append({
-                "user_id": int(uid),
-                "coins": udata["coins"],
-                "timeframe": udata.get("timeframe", "1h"),
-                "last_signals": udata.get("last_signals", {}),
-            })
+        coins = udata.get("coins", [])
+        # Eğer liste boşsa, varsayılan listeyi kullan
+        if not coins:
+            coins = DEFAULT_COINS.copy()
+        result.append({
+            "user_id": int(uid),
+            "coins": coins,
+            "timeframe": udata.get("timeframe", "1h"),
+            "last_signals": udata.get("last_signals", {}),
+        })
     return result
 
 
