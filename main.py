@@ -826,6 +826,9 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 strength_emoji = "💪" if "STRONG" in quality else "⚠️"
                 # --- Funding rate bilgisini çek (YENİ) ---
                 funding = get_funding_info(symbol)
+
+                import asyncio
+                await asyncio.sleep(3)  # 3 saniye bekle
                 
                 await context.bot.send_message(
                     chat_id=user_id,
