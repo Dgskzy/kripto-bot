@@ -1,10 +1,12 @@
-import json
 import os
 import uuid
 from dataclasses import dataclass, asdict
-from typing import Optional
+from pymongo import MongoClient
 
-ALERTS_FILE = os.path.join(os.path.dirname(__file__), "alerts.json")
+MONGODB_URI = os.environ.get("MONGODB_URI")
+client = MongoClient(MONGODB_URI)
+db = client["kripto_bot"]
+col = db["alerts"]
 
 
 @dataclass
@@ -24,58 +26,44 @@ class Alert:
         return cls(**data)
 
 
-def _load_alerts() -> list[Alert]:
-    if not os.path.exists(ALERTS_FILE):
-        return []
-    try:
-        with open(ALERTS_FILE, "r") as f:
-            data = json.load(f)
-        return [Alert.from_dict(a) for a in data]
-    except (json.JSONDecodeError, KeyError):
-        # Dosya bozuksa sıfırla
-        return []
-
-
-def _save_alerts(alerts: list[Alert]):
-    with open(ALERTS_FILE, "w") as f:
-        json.dump([a.to_dict() for a in alerts], f, indent=2)
+def _to_alert(doc: dict) -> Alert:
+    doc["id"] = doc.pop("_id")
+    return Alert.from_dict(doc)
 
 
 def add_alert(user_id: int, symbol: str, condition: str, target_price: float) -> Alert:
-    alerts = _load_alerts()
-    alert = Alert(
-        id=str(uuid.uuid4())[:8],
+    alert_id = str(uuid.uuid4())[:8]
+    doc = {
+        "_id": alert_id,
+        "id": alert_id,
+        "user_id": user_id,
+        "symbol": symbol.upper(),
+        "condition": condition,
+        "target_price": target_price,
+        "triggered": False,
+    }
+    col.insert_one(doc)
+    return Alert(
+        id=alert_id,
         user_id=user_id,
         symbol=symbol.upper(),
         condition=condition,
         target_price=target_price,
     )
-    alerts.append(alert)
-    _save_alerts(alerts)
-    return alert
 
 
-def get_user_alerts(user_id: int) -> list[Alert]:
-    return [a for a in _load_alerts() if a.user_id == user_id and not a.triggered]
+def get_user_alerts(user_id: int) -> list:
+    return [_to_alert(d) for d in col.find({"user_id": user_id, "triggered": False})]
 
 
-def get_all_active_alerts() -> list[Alert]:
-    return [a for a in _load_alerts() if not a.triggered]
+def get_all_active_alerts() -> list:
+    return [_to_alert(d) for d in col.find({"triggered": False})]
 
 
 def mark_alert_triggered(alert_id: str):
-    alerts = _load_alerts()
-    for a in alerts:
-        if a.id == alert_id:
-            a.triggered = True
-    _save_alerts(alerts)
+    col.update_one({"_id": alert_id}, {"$set": {"triggered": True}})
 
 
 def delete_alert(user_id: int, alert_id: str) -> bool:
-    alerts = _load_alerts()
-    original_count = len(alerts)
-    alerts = [a for a in alerts if not (a.id == alert_id and a.user_id == user_id)]
-    if len(alerts) < original_count:
-        _save_alerts(alerts)
-        return True
-    return False
+    result = col.delete_one({"_id": alert_id, "user_id": user_id})
+    return result.deleted_count > 0
