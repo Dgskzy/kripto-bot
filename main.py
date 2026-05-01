@@ -966,7 +966,7 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
                 continue
 
             # TP/SL fiyatını belirle: TP hit ise take_profit, SL hit ise stop_loss
-            close_px = s["take_profit"] if status == "tp_hit" else s["stop_loss"]
+            close_px = cur_price  # Gerçek kapanış fiyatı
 
             # Çift kapama koruması: close_signal False dönerse zaten kapatılmış
             was_open = close_signal(s["id"], status, close_price=close_px)
