@@ -850,7 +850,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                         f"Signal ID: `{saved['id']}`\n"
                         f"⚠️ _Yatırım tavsiyesi değildir._"
                     ),
-                    parse_mode="Markdown",
+                    
                 )
                 logger.info(f"Signal sent: {sig['signal_type']} {symbol} to user {user_id}")
             except Exception as e:
