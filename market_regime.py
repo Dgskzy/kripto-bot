@@ -104,33 +104,30 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
 
 
 def calc_adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-    """ADX hesaplar - düzeltilmiş versiyon"""
+    """Basit ve doğru ADX hesaplar."""
     
-    # True Range (manuel hesapla, calc_atr ile çakışmasın)
+    # True Range
     tr1 = high - low
     tr2 = abs(high - close.shift(1))
     tr3 = abs(low - close.shift(1))
-    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    atr_value = true_range.ewm(span=period, adjust=False).mean()
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr_val = tr.ewm(span=period, adjust=False).mean()
     
-    # +DM ve -DM
-    up_move = high.diff()
-    down_move = -low.diff()
+    # Hareket yönleri
+    up = high.diff()
+    down = -low.diff()
     
-    plus_dm = pd.Series(0.0, index=high.index)
-    minus_dm = pd.Series(0.0, index=high.index)
+    # Sıfırla ve filtrele
+    plus_dm = up.where((up > down) & (up > 0), 0.0)
+    minus_dm = down.where((down > up) & (down > 0), 0.0)
     
-    plus_dm[(up_move > down_move) & (up_move > 0)] = up_move
-    minus_dm[(down_move > up_move) & (down_move > 0)] = down_move
+    # Ortalama
+    plus_di = 100 * (plus_dm.ewm(span=period, adjust=False).mean() / atr_val)
+    minus_di = 100 * (minus_dm.ewm(span=period, adjust=False).mean() / atr_val)
     
-    # Smooth DM
-    plus_di = 100 * (plus_dm.ewm(span=period, adjust=False).mean() / atr_value)
-    minus_di = 100 * (minus_dm.ewm(span=period, adjust=False).mean() / atr_value)
-    
-    # DX ve ADX
+    # ADX
     di_sum = plus_di + minus_di
-    di_sum = di_sum.replace(0, np.nan)  # Sıfıra bölünmeyi engelle
-    dx = 100 * abs(plus_di - minus_di) / di_sum
+    dx = 100 * abs(plus_di - minus_di) / di_sum.where(di_sum != 0, np.nan)
     adx = dx.ewm(span=period, adjust=False).mean()
     
     return adx
