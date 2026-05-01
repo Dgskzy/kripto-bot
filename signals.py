@@ -77,10 +77,12 @@ def calc_supertrend(df: pd.DataFrame, period: int = SUPERTREND_PERIOD, multiplie
     basic_ub = hl2 + multiplier * atr
     basic_lb = hl2 - multiplier * atr
 
+    # copy() yerine direkt Series olarak başlat
     final_ub = basic_ub.copy()
     final_lb = basic_lb.copy()
 
     close = df["close"]
+    idx = df.index  # index listesi
 
     for i in range(1, len(df)):
         prev_ub = final_ub.iloc[i - 1]
@@ -88,20 +90,20 @@ def calc_supertrend(df: pd.DataFrame, period: int = SUPERTREND_PERIOD, multiplie
         prev_close = close.iloc[i - 1]
 
         if basic_ub.iloc[i] < prev_ub or prev_close > prev_ub:
-            final_ub.iloc[i] = basic_ub.iloc[i]
+            final_ub.loc[idx[i]] = basic_ub.iloc[i]
         else:
-            final_ub.iloc[i] = prev_ub
+            final_ub.loc[idx[i]] = prev_ub
 
         if basic_lb.iloc[i] > prev_lb or prev_close < prev_lb:
-            final_lb.iloc[i] = basic_lb.iloc[i]
+            final_lb.loc[idx[i]] = basic_lb.iloc[i]
         else:
-            final_lb.iloc[i] = prev_lb
+            final_lb.loc[idx[i]] = prev_lb
 
     supertrend = pd.Series(index=df.index, dtype=float)
     direction = pd.Series(index=df.index, dtype=int)
 
-    supertrend.iloc[0] = final_ub.iloc[0]
-    direction.iloc[0] = -1
+    supertrend.loc[idx[0]] = final_ub.iloc[0]
+    direction.loc[idx[0]] = -1
 
     for i in range(1, len(df)):
         prev_st = supertrend.iloc[i - 1]
@@ -111,18 +113,18 @@ def calc_supertrend(df: pd.DataFrame, period: int = SUPERTREND_PERIOD, multiplie
 
         if prev_st == prev_ub:
             if cur_close <= final_ub.iloc[i]:
-                supertrend.iloc[i] = final_ub.iloc[i]
-                direction.iloc[i] = -1
+                supertrend.loc[idx[i]] = final_ub.iloc[i]
+                direction.loc[idx[i]] = -1
             else:
-                supertrend.iloc[i] = final_lb.iloc[i]
-                direction.iloc[i] = 1
+                supertrend.loc[idx[i]] = final_lb.iloc[i]
+                direction.loc[idx[i]] = 1
         else:
             if cur_close >= final_lb.iloc[i]:
-                supertrend.iloc[i] = final_lb.iloc[i]
-                direction.iloc[i] = 1
+                supertrend.loc[idx[i]] = final_lb.iloc[i]
+                direction.loc[idx[i]] = 1
             else:
-                supertrend.iloc[i] = final_ub.iloc[i]
-                direction.iloc[i] = -1
+                supertrend.loc[idx[i]] = final_ub.iloc[i]
+                direction.loc[idx[i]] = -1
 
     return supertrend, direction, atr
 
