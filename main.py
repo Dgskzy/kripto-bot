@@ -100,19 +100,26 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "Kullanım: /backtest <coin> <gün>\n"
             "Örnek: /backtest BTC 30\n"
-            "Örnek: /backtest ETH 60"
+            "Örnek: /backtest ETH 60\n\n"
+            "Zaman dilimi /setinterval ile değiştirilebilir."
         )
         return
     
     raw = context.args[0]
     days = int(context.args[1]) if len(context.args) > 1 else 30
     days = min(days, 90)  # Max 90 gün
-    
+
     symbol = normalize_symbol(raw)
-    msg = await update.message.reply_text(f"⏳ {symbol} için {days} günlük backtest yapılıyor...")
-    
+    settings = get_user_settings(update.effective_user.id)
+    timeframe = settings.get("timeframe", "1h")
+
+    msg = await update.message.reply_text(
+        f"⏳ {symbol} için {days} günlük backtest yapılıyor...\n"
+        f"Zaman dilimi: {timeframe}"
+    )
+
     try:
-        result = run_backtest(symbol, "1h", days)
+        result = run_backtest(symbol, timeframe, days)
         
         if "error" in result:
             if "debug" in result:
@@ -966,7 +973,7 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
                 continue
 
             # TP/SL fiyatını belirle: TP hit ise take_profit, SL hit ise stop_loss
-            close_px = cur_price  # Gerçek kapanış fiyatı
+            close_px = s["take_profit"] if status == "tp_hit" else s["stop_loss"]
 
             # Çift kapama koruması: close_signal False dönerse zaten kapatılmış
             was_open = close_signal(s["id"], status, close_price=close_px)
