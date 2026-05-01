@@ -67,7 +67,7 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
             else:
                 description = f"✅ Düşüş trendi (Eğim: %{ema_slope:.1f})"
         elif price_range_pct < 3.0:
-            regime = "RANGE"
+            regime = "YATAY"
             confidence = 0.7
             description = f"🚫 Yatay piyasa (Aralık: %{price_range_pct:.1f})"
         else:
