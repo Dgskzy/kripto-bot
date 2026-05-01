@@ -896,6 +896,64 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Alert check error {alert.id}: {e}")
 
+async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Bot durumunu ve olası hataları gösterir."""
+    user_id = update.effective_user.id
+    
+    lines = ["🔍 *BOT DURUM RAPORU*\n"]
+    
+    # 1. Watchlist durumu
+    settings = get_user_settings(user_id)
+    coins = settings.get("coins", [])
+    if coins:
+        lines.append(f"📋 Takip Listesi: *{len(coins)}* coin")
+        lines.append(f"   {', '.join(coins[:5])}{'...' if len(coins) > 5 else ''}")
+    else:
+        lines.append(f"📋 Takip Listesi: ❌ BOŞ!")
+    
+    # 2. Açık sinyaller
+    open_sigs = get_open_signals(user_id)
+    lines.append(f"📡 Açık Sinyaller: *{len(open_sigs)}* adet")
+    
+    # 3. Dosya durumu
+    import os
+    files_to_check = ["watchlist.json", "open_signals.json", "alerts.json", "ai_model.pkl"]
+    for f in files_to_check:
+        path = os.path.join(os.path.dirname(__file__), f)
+        status = "✅" if os.path.exists(path) else "❌"
+        lines.append(f"   {status} {f}")
+    
+    # 4. CVD/OI durumu
+    try:
+        from signal_filter import get_cvd_oi_data
+        test = get_cvd_oi_data("BTC/USDT", "1h", limit=5)
+        cvd_status = "✅ Çalışıyor" if test is not None else "⚠️ Veri yok (normal)"
+    except Exception as e:
+        cvd_status = f"❌ Hata: {str(e)[:30]}"
+    lines.append(f"📊 CVD/OI: {cvd_status}")
+    
+    # 5. ADX testi
+    try:
+        from market_regime import detect_market_regime
+        regime = detect_market_regime("BTC/USDT")
+        lines.append(f"📈 ADX (BTC): {regime.get('adx', 'N/A')}")
+    except Exception as e:
+        lines.append(f"📈 ADX: ❌ Hata: {str(e)[:30]}")
+    
+    # 6. AI durumu
+    try:
+        from ai_filter import ai_filter
+        lines.append(f"🤖 AI: {'Eğitildi' if ai_filter.is_trained else '⏳ Henüz eğitilmedi'}")
+    except:
+        lines.append(f"🤖 AI: ❌ Yüklenemedi")
+    
+    # 7. Tarama bilgisi
+    lines.append(f"\n⏱ Tarama: Her 10 dk'da bir")
+    lines.append(f"🔔 Alarm: Her 2 dk'da bir")
+    lines.append(f"🛡️ SL/TP: Her 5 dk'da bir")
+    
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
     """
@@ -965,6 +1023,34 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
 
+async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Takip listesini gösterir."""
+    user_id = update.effective_user.id
+    settings = get_user_settings(user_id)
+    coins = settings.get("coins", [])
+    timeframe = settings.get("timeframe", "1h")
+
+    if not coins:
+        await update.message.reply_text(
+            "📋 Takip listeniz boş.\n\n"
+            "Eklemek için: /addcoin BTC\n"
+            f"Varsayılan liste: {', '.join(DEFAULT_COINS)}"
+        )
+        return
+
+    lines = [
+        f"📋 *TAKİP LİSTESİ* — {len(coins)} coin",
+        f"⏱ Zaman dilimi: *{timeframe}*",
+        f"",
+    ]
+    for i, coin in enumerate(coins, 1):
+        last_sig = get_last_signal(user_id, coin)
+        sig_icon = "🟢" if last_sig == "BUY" else "🔴" if last_sig == "SELL" else "⚪"
+        lines.append(f"{i}. {coin} {sig_icon} {last_sig or 'Sinyal yok'}")
+
+    lines.append(f"\n/removecoin <coin> ile çıkarabilirsiniz.")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 def main():
     if not TOKEN:
@@ -1007,6 +1093,8 @@ def main():
     app.add_handler(CommandHandler("myalerts", myalerts_command))
     app.add_handler(CommandHandler("delalert", delalert_command))
     app.add_handler(CommandHandler("backtest", backtest_command))
+    app.add_handler(CommandHandler("debug", debug_command))
+    app.add_handler(CommandHandler("watchlist", watchlist_command))
     app.add_handler(CallbackQueryHandler(button_callback))
 
     app.job_queue.run_repeating(check_alerts, interval=120, first=10)
