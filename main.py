@@ -884,20 +884,20 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Bot durumunu ve olası hataları gösterir."""
     user_id = update.effective_user.id
     
-    lines = ["🔍 *BOT DURUM RAPORU*\n"]
+    lines = ["🔍 BOT DURUM RAPORU", ""]
     
     # 1. Watchlist durumu
     settings = get_user_settings(user_id)
     coins = settings.get("coins", [])
     if coins:
-        lines.append(f"📋 Takip Listesi: *{len(coins)}* coin")
+        lines.append(f"📋 Takip Listesi: {len(coins)} coin")
         lines.append(f"   {', '.join(coins[:5])}{'...' if len(coins) > 5 else ''}")
     else:
-        lines.append(f"📋 Takip Listesi: ❌ BOŞ!")
+        lines.append("📋 Takip Listesi: BOŞ!")
     
     # 2. Açık sinyaller
     open_sigs = get_open_signals(user_id)
-    lines.append(f"📡 Açık Sinyaller: *{len(open_sigs)}* adet")
+    lines.append(f"📡 Açık Sinyaller: {len(open_sigs)} adet")
     
     # 3. Dosya durumu
     import os
@@ -907,36 +907,28 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status = "✅" if os.path.exists(path) else "❌"
         lines.append(f"   {status} {f}")
     
-    # 4. CVD/OI durumu
-    try:
-        from signal_filter import get_cvd_oi_data
-        test = get_cvd_oi_data("BTC/USDT", "1h", limit=5)
-        cvd_status = "✅ Çalışıyor" if test is not None else "⚠️ Veri yok (normal)"
-    except Exception as e:
-        cvd_status = f"❌ Hata: {str(e)[:30]}"
-    lines.append(f"📊 CVD/OI: {cvd_status}")
-    
-    # 5. ADX testi
+    # 4. Piyasa Rejimi testi
     try:
         from market_regime import detect_market_regime
         regime = detect_market_regime("BTC/USDT")
-        lines.append(f"📈 ADX (BTC): {regime.get('adx', 'N/A')}")
+        lines.append(f"📈 Piyasa (BTC): {regime.get('regime', 'N/A')} (Eğim: %{regime.get('adx', 0)})")
     except Exception as e:
-        lines.append(f"📈 ADX: ❌ Hata: {str(e)[:30]}")
+        lines.append(f"📈 Piyasa: Hata: {str(e)[:30]}")
     
-    # 6. AI durumu
+    # 5. AI durumu
     try:
         from ai_filter import ai_filter
-        lines.append(f"🤖 AI: {'Eğitildi' if ai_filter.is_trained else '⏳ Henüz eğitilmedi'}")
+        lines.append(f"🤖 AI: {'Eğitildi' if ai_filter.is_trained else 'Henüz eğitilmedi'}")
     except:
-        lines.append(f"🤖 AI: ❌ Yüklenemedi")
+        lines.append("🤖 AI: Yüklenemedi")
     
-    # 7. Tarama bilgisi
-    lines.append(f"\n⏱ Tarama: Her 10 dk'da bir")
-    lines.append(f"🔔 Alarm: Her 2 dk'da bir")
-    lines.append(f"🛡️ SL/TP: Her 5 dk'da bir")
+    # 6. Tarama bilgisi
+    lines.append("")
+    lines.append("⏱ Tarama: Her 10 dk'da bir")
+    lines.append("🔔 Alarm: Her 2 dk'da bir")
+    lines.append("🛡️ SL/TP: Her 5 dk'da bir")
     
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
