@@ -773,7 +773,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 # --------------------------------------------------------
                 # --- PİYASA REJİMİ (SADECE BİLGİ) ---
                 regime = detect_market_regime(symbol, timeframe)
-                regime_text = f"📈 *Piyasa:* {regime['regime']} (Eğim: %{regime['adx']})\n"
+                regime_text = f"📈 Piyasa: {regime['regime']} (Eğim: %{regime['adx']})\n"
                 # ----------------------------------------
                 
                 last = get_last_signal(user_id, symbol)
@@ -798,14 +798,13 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                             await context.bot.send_message(
                                 chat_id=user_id,
                                 text=(
-                                    f"🔄 *TERS SİNYAL — {symbol}*\n\n"
+                                    f"🔄 TERS SİNYAL — {symbol}\n\n"
                                     f"Önceki {old_action} pozisyonu kapatıldı.\n"
-                                    f"Giriş: `{format_price(old['entry_price'])}`\n"
-                                    f"Kapanış: `{format_price(close_px)}`\n"
-                                    f"{pnl_icon} Sonuç: *{pnl_pct:+.2f}%*\n"
-                                    f"Signal ID: `{old['id']}`"
+                                    f"Giriş: {format_price(old['entry_price'])}\n"
+                                    f"Kapanış: {format_price(close_px)}\n"
+                                    f"{pnl_icon} Sonuç: {pnl_pct:+.2f}%\n"
+                                    f"Signal ID: {old['id']}"
                                 ),
-                                parse_mode="Markdown",
                             )
                         except Exception as e:
                             logger.error(f"Reversal notify error {old['id']}: {e}")
@@ -990,15 +989,14 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=s["user_id"],
                 text=(
-                    f"{icon} *{label} TETİKLENDİ!*\n\n"
-                    f"{signal_icon} {action} — *{s['symbol']}* [{s['timeframe']}]\n\n"
-                    f"Giriş: `{format_price(s['entry_price'])}`\n"
-                    f"Çıkış: *{format_price(cur_price)}*\n"
-                    f"{pnl_icon} Sonuç: *{pnl_pct:+.2f}%*\n\n"
+                    f"{icon} {label} TETİKLENDİ!\n\n"
+                    f"{signal_icon} {action} — {s['symbol']} [{s['timeframe']}]\n\n"
+                    f"Giriş: {format_price(s['entry_price'])}\n"
+                    f"Çıkış: {format_price(cur_price)}\n"
+                    f"{pnl_icon} Sonuç: {pnl_pct:+.2f}%\n\n"
                     f"Yeni sinyal ancak ters yön oluştuğunda gelecektir.\n"
-                    f"Signal ID: `{s['id']}`"
+                    f"Signal ID: {s['id']}"
                 ),
-                parse_mode="Markdown",
             )
             logger.info(f"Signal {s['id']} closed: {status}")
         except Exception as e:
