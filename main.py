@@ -908,13 +908,24 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     open_sigs = get_open_signals(user_id)
     lines.append(f"📡 Açık Sinyaller: {len(open_sigs)} adet")
     
-    # 3. Dosya durumu
+    # 3. MongoDB durumu
+    try:
+        from pymongo import MongoClient
+        import os
+        client = MongoClient(os.environ.get("MONGODB_URI"))
+        db = client["kripto_bot"]
+        collections = db.list_collection_names()
+        lines.append(f"🗄️ MongoDB: ✅ Bağlı ({len(collections)} koleksiyon)")
+        for c in collections:
+            count = db[c].count_documents({})
+            lines.append(f"   📁 {c}: {count} belge")
+    except Exception as e:
+        lines.append(f"🗄️ MongoDB: ❌ {str(e)[:30]}")
+    
+    # AI model durumu
     import os
-    files_to_check = ["watchlist.json", "open_signals.json", "alerts.json", "ai_model.pkl"]
-    for f in files_to_check:
-        path = os.path.join(os.path.dirname(__file__), f)
-        status = "✅" if os.path.exists(path) else "❌"
-        lines.append(f"   {status} {f}")
+    ai_path = os.path.join(os.path.dirname(__file__), "ai_model.pkl")
+    lines.append(f"   {'✅' if os.path.exists(ai_path) else '❌'} ai_model.pkl")
     
     # 4. Piyasa Rejimi testi
     try:
