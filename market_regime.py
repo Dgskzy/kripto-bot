@@ -52,27 +52,27 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
         recent_volatility = float(returns.tail(20).std()) * 100
         
         # REJİM KARARI (ADX'siz, EMA eğimi + volatilite)
-        if abs(ema_slope) > 1.0:
+        if abs(ema_slope) > 0.2:
             regime = "TREND"
             confidence = 0.8
             if ema_slope > 0:
                 description = f"💪 Güçlü yükseliş (Eğim: %{ema_slope:.1f})"
             else:
                 description = f"💪 Güçlü düşüş (Eğim: %{ema_slope:.1f})"
-        elif abs(ema_slope) > 0.5:
+        elif abs(ema_slope) > 0.1:
             regime = "TREND"
             confidence = 0.6
             if ema_slope > 0:
                 description = f"✅ Yükseliş trendi (Eğim: %{ema_slope:.1f})"
             else:
                 description = f"✅ Düşüş trendi (Eğim: %{ema_slope:.1f})"
-        elif price_range_pct < 3.0:
+        elif price_range_pct < 2.0:
             regime = "YATAY"
             confidence = 0.7
             description = f"🚫 Yatay piyasa (Aralık: %{price_range_pct:.1f})"
         else:
             regime = "TREND"
-            confidence = 0.4
+            confidence = 0.5
             description = f"⚪ Belirsiz"
         
         return {
@@ -131,7 +131,7 @@ def should_trade(regime: dict) -> tuple[bool, str]:
         return True, f"✅ Trend piyasası — Tam gaz!"
     elif regime["regime"] == "TREND" and regime["confidence"] < 0.6:
         return True, f"⚠️ Zayıf trend — Dikkatli ol"
-    elif regime["regime"] == "RANGE":
+    elif regime["regime"] in ("RANGE", "YATAY"):
         return False, f"🚫 Yatay piyasa — Bekle"
     elif regime["regime"] == "VOLATILE":
         return True, f"⚠️ Volatil piyasa — Küçük pozisyon"
