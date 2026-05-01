@@ -9,41 +9,11 @@ exchange_futures = ccxt.binance({
 })
 
 
-def get_cvd_oi_data(symbol: str, timeframe: str = "1h", limit: int = 120) -> pd.DataFrame | None:
+def get_cvd_oi_data(symbol: str, timeframe: str = "1h", limit: int = 120):
     """Binance Futures'tan CVD ve Open Interest verisi çeker."""
-    try:
-        # Binance sembol formatı: BTCUSDT (slash yok)
-        binance_symbol = symbol.replace('/USDT', 'USDT')
-
-        oi_raw = exchange_futures.fapiPublic_get_openinteresthist({
-            'symbol': binance_symbol,
-            'period': timeframe,
-            'limit': limit,
-        })
-        taker_raw = exchange_futures.fapiPublic_get_takerbuysellvol({
-            'symbol': binance_symbol,
-            'period': timeframe,
-            'limit': limit,
-        })
-
-        if not oi_raw or not taker_raw:
-            return None
-
-        oi_df = pd.DataFrame(oi_raw, columns=['timestamp', 'sumOpenInterest', 'sumOpenInterestValue'])
-        oi_df['timestamp'] = pd.to_datetime(oi_df['timestamp'], unit='ms')
-        oi_df['oi'] = pd.to_numeric(oi_df['sumOpenInterestValue'])
-
-        taker_df = pd.DataFrame(taker_raw, columns=['timestamp', 'buyVol', 'sellVol'])
-        taker_df['timestamp'] = pd.to_datetime(taker_df['timestamp'], unit='ms')
-        taker_df['delta'] = pd.to_numeric(taker_df['buyVol']) - pd.to_numeric(taker_df['sellVol'])
-        taker_df['cvd'] = taker_df['delta'].cumsum()
-
-        merged = pd.merge(oi_df[['timestamp', 'oi']], taker_df[['timestamp', 'cvd']], on='timestamp', how='inner')
-        return merged
-
-    except Exception as e:
-        print(f"CVD/OI verisi alınamadı: {e}")
-        return None
+    # Şimdilik devre dışı - API uyumsuzluğu nedeniyle
+    # İleride düzeltilecek
+    return None
 
 
 def _trend(series: pd.Series, lookback: int = 5) -> str:
