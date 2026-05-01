@@ -770,7 +770,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 quality = "WEAK_LONG" if sig["signal_type"] == "BUY" else "WEAK_SHORT"
                 # --- PİYASA REJİMİ (SADECE BİLGİ) ---
                 regime = detect_market_regime(symbol, timeframe)
-                regime_text = f"📈 *Piyasa:* {regime['regime']} (ADX: {regime['adx']})\n"
+                regime_text = f"📈 *Piyasa:* {regime['regime']} (Eğim: %{regime['adx']})\n"
                 # ----------------------------------------
                 
                 last = get_last_signal(user_id, symbol)
