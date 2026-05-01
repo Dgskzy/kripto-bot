@@ -10,17 +10,17 @@ exchange_futures = ccxt.binance({
 
 
 def get_cvd_oi_data(symbol: str, timeframe: str = "1h", limit: int = 120):
-    """Binance Futures'tan CVD ve Open Interest verisi çeker."""
+    """Binance Futures'tan CVD ve Open Interest verisi çeker - DÜZELTİLMİŞ."""
     try:
         binance_symbol = symbol.replace("/", "")
         
-        # Düzeltilmiş API çağrıları (büyük harf!)
-        oi_raw = exchange_futures.fapiPublicGet_openInterestHist({
+        # YENİ API METODLARI
+        oi_raw = exchange_futures.fapiPublic_get_open_interest_hist({
             'symbol': binance_symbol,
             'period': timeframe,
             'limit': limit,
         })
-        taker_raw = exchange_futures.fapiPublicGet_takerBuySellVol({
+        taker_raw = exchange_futures.fapiPublic_get_taker_buy_sell_vol({
             'symbol': binance_symbol,
             'period': timeframe,
             'limit': limit,
