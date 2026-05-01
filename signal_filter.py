@@ -10,17 +10,17 @@ exchange_futures = ccxt.binance({
 
 
 def get_cvd_oi_data(symbol: str, timeframe: str = "1h", limit: int = 120):
-    """Binance Futures'tan CVD ve Open Interest verisi çeker - DÜZELTİLMİŞ."""
+    """Binance Futures'tan CVD ve Open Interest verisi çeker - KESİN ÇÖZÜM."""
     try:
         binance_symbol = symbol.replace("/", "")
         
-        # YENİ API METODLARI
-        oi_raw = exchange_futures.fapiPublic_get_open_interest_hist({
+        # KESİN DOĞRU API METODLARI
+        oi_raw = exchange_futures.fapiPublicGetOpenInterestHist({
             'symbol': binance_symbol,
             'period': timeframe,
             'limit': limit,
         })
-        taker_raw = exchange_futures.fapiPublic_get_taker_buy_sell_vol({
+        taker_raw = exchange_futures.fapiPublicGetTakerBuySellVol({
             'symbol': binance_symbol,
             'period': timeframe,
             'limit': limit,
@@ -44,8 +44,7 @@ def get_cvd_oi_data(symbol: str, timeframe: str = "1h", limit: int = 120):
     except Exception as e:
         print(f"CVD/OI verisi alınamadı: {e}")
         return None
-
-
+        
 def _trend(series: pd.Series, lookback: int = 5) -> str:
     """Son N değerin yönünü belirler: 'up', 'down' veya 'neutral'"""
     if len(series) < lookback:
