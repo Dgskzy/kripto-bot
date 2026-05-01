@@ -5,7 +5,10 @@ from datetime import datetime
 import ccxt
 
 # Binance borsası (ücretsiz, limitsiz, hızlı)
-exchange = ccxt.binance()
+exchange = ccxt.binance({
+    'enableRateLimit': True,
+    'rateLimit': 1200,  # 1200ms = 50 istek/dakika (güvenli)
+})
 
 SYMBOL_ALIASES = {
     "MATIC": "POL",
