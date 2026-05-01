@@ -269,7 +269,6 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"\n⚠️ _Yatırım tavsiyesi değildir._")
     await msg.edit_text("\n".join(lines), parse_mode="Markdown")
 
-
 async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("Kullanım: /signals <coin>\nÖrnek: /signals BTC")
@@ -283,7 +282,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await update.message.reply_text(f"⏳ {symbol} analiz ediliyor...")
         s = calculate_signals(symbol, timeframe)
 
-         # Piyasa rejimi tespiti
+        # Piyasa rejimi tespiti
         regime = detect_market_regime(symbol, timeframe)
         trade_ok, regime_msg = should_trade(regime)
 
@@ -329,7 +328,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"RSI (14): `{s['rsi']}`\n"
             f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n"
             f"{ai_text}"
-           f"📈 *Piyasa Rejimi:* {regime['regime']} (Eğim: %{regime['adx']})\n"
+            f"📈 *Piyasa Rejimi:* {regime['regime']} (Eğim: %{regime['adx']})\n"
             f"   {regime_msg}\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir._"
         )
