@@ -104,21 +104,18 @@ def detect_market_regime(symbol: str, timeframe: str = "1h") -> dict:
 
 
 def calc_adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-    """
-    ADX (Average Directional Index) hesaplar.
-    ADX > 25: Trendli piyasa
-    ADX < 20: Yatay piyasa
-    """
-    # True Range
+    """ADX hesaplar - düzeltilmiş versiyon"""
+    
+    # True Range (manuel hesapla, calc_atr ile çakışmasın)
     tr1 = high - low
     tr2 = abs(high - close.shift(1))
     tr3 = abs(low - close.shift(1))
-    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    atr = tr.ewm(span=period, adjust=False).mean()
+    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr_value = true_range.ewm(span=period, adjust=False).mean()
     
     # +DM ve -DM
-    up_move = high - high.shift(1)
-    down_move = low.shift(1) - low
+    up_move = high.diff()
+    down_move = -low.diff()
     
     plus_dm = pd.Series(0.0, index=high.index)
     minus_dm = pd.Series(0.0, index=high.index)
@@ -127,11 +124,13 @@ def calc_adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14
     minus_dm[(down_move > up_move) & (down_move > 0)] = down_move
     
     # Smooth DM
-    plus_di = 100 * (plus_dm.ewm(span=period, adjust=False).mean() / atr)
-    minus_di = 100 * (minus_dm.ewm(span=period, adjust=False).mean() / atr)
+    plus_di = 100 * (plus_dm.ewm(span=period, adjust=False).mean() / atr_value)
+    minus_di = 100 * (minus_dm.ewm(span=period, adjust=False).mean() / atr_value)
     
     # DX ve ADX
-    dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+    di_sum = plus_di + minus_di
+    di_sum = di_sum.replace(0, np.nan)  # Sıfıra bölünmeyi engelle
+    dx = 100 * abs(plus_di - minus_di) / di_sum
     adx = dx.ewm(span=period, adjust=False).mean()
     
     return adx
