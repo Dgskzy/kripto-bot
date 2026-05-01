@@ -1073,7 +1073,7 @@ def main():
     app.add_handler(CommandHandler("watchlist", watchlist_command))
     app.add_handler(CallbackQueryHandler(button_callback))
 
-    app.job_queue.run_repeating(check_alerts, interval=120, first=10)
+    app.job_queue.run_repeating(check_alerts, interval=180, first=10)
     app.job_queue.run_repeating(scan_watchlist, interval=600, first=30)
     app.job_queue.run_repeating(check_open_signals, interval=300, first=15)
 
