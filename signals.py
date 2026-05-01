@@ -149,15 +149,26 @@ def detect_signal(symbol: str, timeframe: str = "1h") -> dict | None:
 
     cur_ema12 = ema12.iloc[-2]
     cur_ema26 = ema26.iloc[-2]
-    prev_ema12 = ema12.iloc[-3]
-    prev_ema26 = ema26.iloc[-3]
     cur_dir = direction.iloc[-2]
     cur_price = float(df["close"].iloc[-2])
     cur_atr = float(atr.iloc[-2])
     cur_st = float(supertrend.iloc[-2])
 
-    crossed_up = prev_ema12 <= prev_ema26 and cur_ema12 > cur_ema26
-    crossed_down = prev_ema12 >= prev_ema26 and cur_ema12 < cur_ema26
+    # Son 3 barda kesişim var mı?
+    crossed_up = False
+    crossed_down = False
+    for j in range(1, 4):
+        # Sınır kontrolü
+        if j+2 >= len(ema12) or j+1 >= len(ema12):
+            break
+        p12 = ema12.iloc[-j-2]
+        p26 = ema26.iloc[-j-2]
+        c12 = ema12.iloc[-j-1]
+        c26 = ema26.iloc[-j-1]
+        if p12 <= p26 and c12 > c26:
+            crossed_up = True
+        if p12 >= p26 and c12 < c26:
+            crossed_down = True
 
     # Coin'in volatilite profilini al
     profile = get_coin_profile(symbol)
