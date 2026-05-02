@@ -202,7 +202,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📈 *Trend Yönü* ({s['trend_method']})\n"
             f"Durum: `{s['trend_text']}`\n"
             f"Regresyon Hattı: `{format_price(s['regline'])}`\n\n"
-            f"💪 *Trend Gücü \\(R²\\)*\n"
+            f"💪 Trend Gücü (R²)\n"
             f"Skor: `%{s['strength']}` — `{s['strength_text']}`\n"
             f"Periyot: `{s['trend_period']}` bar\n\n"
             f"📏 *ATR Seviyeleri*\n"
@@ -212,9 +212,9 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"RSI \\(14\\): `{s['rsi']}`\n"
             f"📊 *Fonlama:* %{funding['rate']} {funding['icon']} {funding['text']}\n\n"
             f"{ai_text}"
-            f"📈 *Piyasa Rejimi:* {regime['regime']} \\(Eğim: %{regime['adx']}\\)\n"
+            f"📈 Piyasa Rejimi: {regime['regime']} (Eğim: %{regime['adx']})\n"
             f"   {regime_msg}\n\n"
-            f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir\\._"
+            f"⚠️ Bu bilgiler yatırım tavsiyesi değildir."
         )
         await msg.edit_text(text)
     except Exception as e:
