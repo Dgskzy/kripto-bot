@@ -196,7 +196,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text = (
             f"📊 *{s['symbol']} — Trend Analizi*\n"
-            f"⏱ Zaman: {s['timeframe']} | Fiyat: *{format_price(s['price'])}*\n\n"
+            f"⏱ Zaman: {s['timeframe']} — Fiyat: *{format_price(s['price'])}*\n\n"
             f"━━━━━━━━━━━━━━━━\n"
             f"🎯 *KARAR: {s['overall']}*\n"
             f"━━━━━━━━━━━━━━━━\n\n"
