@@ -110,19 +110,18 @@ SL/TP: Coin bazlı ATR çarpanı | Trailing Stop aktif
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 *Kripto Sinyal Botuna Hoş Geldiniz!*\n\n"
-        "Pine Script'teki *Trend Analysis \\[Mr\\_Rakun\\]* göstergesinin Python uyarlamasıyla "
-        "otomatik AL/SAT sinyalleri üretirim\\.\n\n"
-        f"Yöntem: `{TREND_METHOD}` \\| Periyot: {TREND_PERIOD} bar\n"
-        f"R² trend gücü filtresi \\(min %{TREND_STRENGTH_MIN}\\)\n"
-        "ATR tabanlı Stop Loss / Take Profit \\+ Trailing Stop\n\n"
+        "👋 Kripto Sinyal Botuna Hoş Geldiniz!\n\n"
+        "Pine Script'teki Trend Analysis [Mr_Rakun] göstergesinin Python uyarlamasıyla "
+        "otomatik AL/SAT sinyalleri üretirim.\n\n"
+        f"Yöntem: {TREND_METHOD} | Periyot: {TREND_PERIOD} bar\n"
+        f"R² trend gücü filtresi (min %{TREND_STRENGTH_MIN})\n"
+        "ATR tabanlı Stop Loss / Take Profit + Trailing Stop\n\n"
         + HELP_TEXT,
-        parse_mode="MarkdownV2",
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(HELP_TEXT, parse_mode="Markdown")
+    await update.message.reply_text(HELP_TEXT)
 
 
 async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -139,7 +138,7 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 *{symbol}*\n\n"
             f"Anlık Fiyat: *{format_price(price)}*\n"
             f"📊 Fonlama: *%{funding['rate']}* {funding['icon']} {funding['text']}",
-            parse_mode="Markdown",
+            
         )
     except Exception as e:
         logger.error(f"Price error for {raw}: {e}")
@@ -217,7 +216,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"   {regime_msg}\n\n"
             f"⚠️ _Bu bilgiler yatırım tavsiyesi değildir\\._"
         )
-        await msg.edit_text(text, parse_mode="MarkdownV2")
+        await msg.edit_text(text)
     except Exception as e:
         logger.error(f"Signals error for {raw}: {e}")
         await update.message.reply_text(f"❌ '{raw}' için analiz yapılamadı.")
@@ -240,11 +239,11 @@ async def addcoin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Anlık fiyat: {format_price(price)}\n"
                 f"Zaman dilimi: {settings.get('timeframe', '1h')}\n\n"
                 f"Trend yönü değişip R²≥%{TREND_STRENGTH_MIN} olduğunda sinyal alacaksınız.",
-                parse_mode="Markdown",
+                
             )
         else:
             await update.message.reply_text(
-                f"*{symbol}* zaten takip listenizdeydi.", parse_mode="Markdown"
+                f"*{symbol}* zaten takip listenizdeydi.", 
             )
     except Exception as e:
         logger.error(f"Addcoin error {raw}: {e}")
@@ -259,10 +258,10 @@ async def removecoin_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     symbol = normalize_symbol(raw)
     if remove_coin(update.effective_user.id, symbol):
         await update.message.reply_text(
-            f"✅ *{symbol}* takip listesinden çıkarıldı.", parse_mode="Markdown"
+            f"✅ *{symbol}* takip listesinden çıkarıldı."
         )
     else:
-        await update.message.reply_text(f"*{symbol}* takip listenizde bulunamadı.", parse_mode="Markdown")
+        await update.message.reply_text(f"*{symbol}* takip listenizde bulunamadı.")
 
 
 async def setinterval_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -278,7 +277,7 @@ async def setinterval_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text(
         f"✅ Zaman dilimi *{tf}* olarak güncellendi.\n"
         f"Tüm sinyal taramaları bu zaman dilimiyle çalışacak.",
-        parse_mode="Markdown",
+        
     )
 
 
@@ -340,7 +339,7 @@ async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     lines.append("\n⚠️ _Yatırım tavsiyesi değildir._")
-    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+    await msg.edit_text("\n".join(lines))
 
 
 async def scan20_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -383,7 +382,7 @@ async def scan20_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 lines.append(f"{i}. *{coin['symbol']}* — ❌ Veri alınamadı\n")
 
         lines.append("\n⚠️ _Yatırım tavsiyesi değildir._")
-        await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+        await msg.edit_text("\n".join(lines))
 
     except Exception as e:
         logger.error(f"Scan20 error: {e}")
@@ -421,7 +420,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Dashboard error {symbol}: {e}")
             lines.append(f"*{symbol}* — ❌ Veri alınamadı\n")
 
-    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+    await msg.edit_text("\n".join(lines))
 
 
 async def opensignals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -470,7 +469,7 @@ async def opensignals_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.error(f"Open signals error {s['id']}: {e}")
             lines.append(f"*{s['symbol']}* — ❌ Güncelleme hatası\n")
 
-    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+    await msg.edit_text("\n".join(lines))
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -521,7 +520,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     lines.append("\n⚠️ _Yatırım tavsiyesi değildir._")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines))
 
 
 PER_PAGE = 5
@@ -587,7 +586,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw     = context.args[0] if context.args else None
     symbol  = normalize_symbol(raw) if raw else None
     text, keyboard = _build_history_message(user_id, symbol, page=0)
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
+    await update.message.reply_text(text, reply_markup=keyboard)
 
 
 async def alert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -625,7 +624,7 @@ async def alert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Koşul: Fiyat *{format_price(target_price)}* {direction_text}\n"
             f"Şu anki fiyat: {format_price(current_price)}\n"
             f"Alarm ID: `{alert.id}`",
-            parse_mode="Markdown",
+            
         )
     except Exception as e:
         logger.error(f"Alert error: {e}")
@@ -646,7 +645,7 @@ async def myalerts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"• `{a.id}` — *{a.symbol}* {direction} {format_price(a.target_price)}\n"
         keyboard.append([InlineKeyboardButton(f"❌ Sil: {a.id}", callback_data=f"del_{a.id}")])
     await update.message.reply_text(
-        text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard)
+        text, reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
@@ -656,7 +655,7 @@ async def delalert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     alert_id = context.args[0]
     if delete_alert(update.effective_user.id, alert_id):
-        await update.message.reply_text(f"✅ Alarm `{alert_id}` silindi.", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ Alarm `{alert_id}` silindi.")
     else:
         await update.message.reply_text("❌ Alarm bulunamadı veya size ait değil.")
 
@@ -715,7 +714,7 @@ async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"{icon} {t['type']}: %{t['pnl']:+.2f} ({time_str})\n"
 
         text += "\n⚠️ _Geçmiş performans geleceği garanti etmez._"
-        await msg.edit_text(text, parse_mode="Markdown")
+        await msg.edit_text(text)
 
     except Exception as e:
         logger.error(f"Backtest error: {e}")
@@ -746,7 +745,7 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(f"{i}. {coin} {sig_icon} {last_sig or 'Sinyal yok'}")
 
     lines.append("\n/removecoin <coin> ile çıkarabilirsiniz.")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -988,7 +987,7 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
                         f"Şu anki fiyat: *{format_price(price)}*\n"
                         f"Alarm ID: `{alert.id}`"
                     ),
-                    parse_mode="Markdown",
+                    
                 )
         except Exception as e:
             logger.error(f"Alert check error {alert.id}: {e}")
@@ -1001,7 +1000,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data.startswith("del_"):
         alert_id = query.data[4:]
         if delete_alert(query.from_user.id, alert_id):
-            await query.edit_message_text(f"✅ Alarm `{alert_id}` silindi.", parse_mode="Markdown")
+            await query.edit_message_text(f"✅ Alarm `{alert_id}` silindi.")
         else:
             await query.answer("❌ Alarm bulunamadı.", show_alert=True)
 
@@ -1012,7 +1011,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         symbol   = sym_key if sym_key else None
         user_id  = query.from_user.id
         text, keyboard = _build_history_message(user_id, symbol, page)
-        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(text, reply_markup=keyboard)
 
 
 # ══════════════════════════════════════════════════════════════════════
