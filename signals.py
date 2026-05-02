@@ -20,22 +20,22 @@ TREND_METHOD       = "Linear Regression"
 TREND_STRENGTH_MIN = 30           # Sinyal için minimum R² skoru (0-100)
 
 SL_ATR_MULT = 1.5
-TP_ATR_MULT = 3.0
+TP_ATR_MULT = 3.75
 
 VOLATILITY_PROFILES = {
-    "BTC":  {"sl_mult": 1.0, "tp_mult": 2.5},
-    "ETH":  {"sl_mult": 1.2, "tp_mult": 2.8},
-    "SOL":  {"sl_mult": 1.5, "tp_mult": 3.0},
-    "AVAX": {"sl_mult": 1.5, "tp_mult": 3.0},
-    "XRP":  {"sl_mult": 1.5, "tp_mult": 3.0},
-    "LINK": {"sl_mult": 1.5, "tp_mult": 3.0},
-    "EGLD": {"sl_mult": 1.8, "tp_mult": 3.5},
-    "DOGE": {"sl_mult": 2.0, "tp_mult": 4.0},
-    "default": {"sl_mult": 1.5, "tp_mult": 3.0},
+    "BTC":  {"sl_mult": 1.2, "tp_mult": 3.0},   # 1:2.5
+    "ETH":  {"sl_mult": 1.4, "tp_mult": 3.5},   # 1:2.5
+    "SOL":  {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
+    "AVAX": {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
+    "XRP":  {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
+    "LINK": {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
+    "EGLD": {"sl_mult": 1.8, "tp_mult": 4.5},   # 1:2.5
+    "DOGE": {"sl_mult": 2.0, "tp_mult": 5.0},   # 1:2.5
+    "default": {"sl_mult": 1.5, "tp_mult": 3.75}, # 1:2.5
 }
 
-TRAIL_ACTIVATION = 0.5
-TRAIL_DISTANCE   = 1.0
+TRAIL_ACTIVATION = 0.3
+TRAIL_DISTANCE   = 1.5
 
 
 def get_coin_profile(symbol: str) -> dict:
