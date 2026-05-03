@@ -42,6 +42,20 @@ def get_coin_profile(symbol: str) -> dict:
     base = symbol.split("/")[0] if "/" in symbol else symbol
     return VOLATILITY_PROFILES.get(base, VOLATILITY_PROFILES["default"])
 
+def get_dynamic_sl_mult(r2_score: float, base_sl: float) -> float:
+    """
+    R² yüksekse (sıkışma) → SL genişler (erken stop önlenir)
+    R² düşükse (trendli) → SL normal kalır
+    """
+    if r2_score > 70:    # Aşırı sıkışma
+        return max(base_sl, 2.5)
+    elif r2_score > 50:  # Güçlü sıkışma
+        return max(base_sl, 2.0)
+    elif r2_score > 30:  # Orta
+        return max(base_sl, 1.5)
+    else:                # Trendli
+        return base_sl   # Profildeki değeri kullan
+
 
 # ══════════════════════════════════════════════════════════════════════
 # TEMEL VERİ FONKSİYONLARI
@@ -272,8 +286,9 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         return None
 
     profile  = get_coin_profile(symbol)
-    base_sl_mult = profile["sl_mult"]
-    tp_mult = profile["tp_mult"]
+    base_sl  = profile["sl_mult"]
+    tp_mult  = profile["tp_mult"]
+    sl_mult  = get_dynamic_sl_mult(cur_strength, base_sl)
     
     # Dinamik SL: Sıkışmada genişle, trendde daral
     dynamic_sl_mult = get_dynamic_atr_mult(cur_strength)
