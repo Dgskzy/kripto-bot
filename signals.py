@@ -20,18 +20,18 @@ TREND_METHOD       = "Linear Regression"
 TREND_STRENGTH_MIN = 30           # Sinyal için minimum R² skoru (0-100)
 
 SL_ATR_MULT = 1.5
-TP_ATR_MULT = 3.75
+TP_ATR_MULT = 3.0
 
 VOLATILITY_PROFILES = {
-    "BTC":  {"sl_mult": 1.2, "tp_mult": 3.0},   # 1:2.5
-    "ETH":  {"sl_mult": 1.4, "tp_mult": 3.5},   # 1:2.5
-    "SOL":  {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
-    "AVAX": {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
-    "XRP":  {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
-    "LINK": {"sl_mult": 1.5, "tp_mult": 3.75},  # 1:2.5
-    "EGLD": {"sl_mult": 1.8, "tp_mult": 4.5},   # 1:2.5
-    "DOGE": {"sl_mult": 2.0, "tp_mult": 5.0},   # 1:2.5
-    "default": {"sl_mult": 1.5, "tp_mult": 3.75}, # 1:2.5
+    "BTC":  {"sl_mult": 1.4, "tp_mult": 3.0},   # 1:2.5
+    "ETH":  {"sl_mult": 1.4, "tp_mult": 3.0},   # 1:2.5
+    "SOL":  {"sl_mult": 1.5, "tp_mult": 3.0},  # 1:2.5
+    "AVAX": {"sl_mult": 1.5, "tp_mult": 3.0},  # 1:2.5
+    "XRP":  {"sl_mult": 1.5, "tp_mult": 3.0},  # 1:2.5
+    "LINK": {"sl_mult": 1.5, "tp_mult": 3.0},  # 1:2.5
+    "EGLD": {"sl_mult": 2.0, "tp_mult": 4.0},   # 1:2.5
+    "DOGE": {"sl_mult": 2.0, "tp_mult": 4.0},   # 1:2.5
+    "default": {"sl_mult": 1.5, "tp_mult": 3.0}, # 1:2.5
 }
 
 TRAIL_ACTIVATION = 0.3
@@ -91,6 +91,20 @@ def calc_rsi(series: pd.Series, period: int = 14) -> pd.Series:
 def calc_ema(series: pd.Series, span: int) -> pd.Series:
     """market_regime.py tarafından kullanılıyor — tutuldu."""
     return series.ewm(span=span, adjust=False).mean()
+
+def get_dynamic_atr_mult(r2_score: float) -> float:
+    """
+    R² yüksekse (sıkışma) → ATR periyodu büyür → SL genişler
+    R² düşükse (trendli) → ATR periyodu normal → SL normal
+    """
+    if r2_score > 70:    # Aşırı sıkışma
+        return 2.5        # SL 2.5x ATR (geniş)
+    elif r2_score > 50:  # Güçlü sıkışma
+        return 2.0        # SL 2.0x ATR
+    elif r2_score > 30:  # Orta
+        return 1.5        # SL 1.5x ATR (normal)
+    else:                 # Trendli
+        return 1.2        # SL 1.2x ATR (dar, trend güvenli)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -258,8 +272,12 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         return None
 
     profile  = get_coin_profile(symbol)
-    sl_mult  = profile["sl_mult"]
-    tp_mult  = profile["tp_mult"]
+    base_sl_mult = profile["sl_mult"]
+    tp_mult = profile["tp_mult"]
+    
+    # Dinamik SL: Sıkışmada genişle, trendde daral
+    dynamic_sl_mult = get_dynamic_atr_mult(cur_strength)
+    sl_mult = max(base_sl_mult, dynamic_sl_mult)  # Hangisi büyükse onu kullan
 
     if bullish_start:
         sl = cur_price - sl_mult * cur_atr
