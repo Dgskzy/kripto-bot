@@ -106,20 +106,6 @@ def calc_ema(series: pd.Series, span: int) -> pd.Series:
     """market_regime.py tarafından kullanılıyor — tutuldu."""
     return series.ewm(span=span, adjust=False).mean()
 
-def get_dynamic_atr_mult(r2_score: float) -> float:
-    """
-    R² yüksekse (sıkışma) → ATR periyodu büyür → SL genişler
-    R² düşükse (trendli) → ATR periyodu normal → SL normal
-    """
-    if r2_score > 70:    # Aşırı sıkışma
-        return 2.5        # SL 2.5x ATR (geniş)
-    elif r2_score > 50:  # Güçlü sıkışma
-        return 2.0        # SL 2.0x ATR
-    elif r2_score > 30:  # Orta
-        return 1.5        # SL 1.5x ATR (normal)
-    else:                 # Trendli
-        return 1.2        # SL 1.2x ATR (dar, trend güvenli)
-
 
 # ══════════════════════════════════════════════════════════════════════
 # TREND ANALİZİ  — Pine Script determinePriceTrend() karşılığı
@@ -254,11 +240,13 @@ def _strength_label(s: float) -> str:
 
 def detect_signal(symbol: str, timeframe: str = "1h",
                   method: str = TREND_METHOD,
-                  trend_period: int = TREND_PERIOD) -> dict | None:
+                  trend_period: int = TREND_PERIOD,
+                  use_mtf: bool = True) -> dict | None:
     """
     Trend yönü değişimini algılar → AL/SAT sinyali üretir.
     Pine Script: bullishStart / bearishStart mantığı.
     Güç filtresi: R² >= TREND_STRENGTH_MIN
+    MTF: 1h bias + 15m/5m tetik
     """
     df              = get_ohlcv(symbol, timeframe=timeframe, limit=150)
     atr_series      = calc_atr(df)
@@ -266,7 +254,6 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     trend_series    = compute_trend_series(df, trend_period, method)
     strength_series = compute_strength_series(df["close"], trend_period)
 
-    # Onaylanmış son iki kapanmış bar (açık bar hariç)
     cur_trend    = int(trend_series.iloc[-2])
     prev_trend   = int(trend_series.iloc[-3])
     cur_strength = float(strength_series.iloc[-2])
@@ -274,25 +261,35 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     cur_atr      = float(atr_series.iloc[-2])
     cur_rsi      = float(rsi_series.iloc[-2])
 
-    # Pine Script: bullishStart = ta.change(priceTrend) == 2  (−1 veya 0 → 1)
     bullish_start = (prev_trend != 1)  and (cur_trend == 1)
     bearish_start = (prev_trend != -1) and (cur_trend == -1)
 
     if not (bullish_start or bearish_start):
         return None
 
-    # R² güç filtresi
     if cur_strength < TREND_STRENGTH_MIN:
         return None
+
+    # ──────── MTF FİLTRESİ ────────
+    if use_mtf and timeframe in ("15m", "5m", "1m"):
+        higher_tf = "1h"
+        try:
+            df_htf = get_ohlcv(symbol, timeframe=higher_tf, limit=150)
+            trend_htf = compute_trend_series(df_htf, trend_period, method)
+            bias = int(trend_htf.iloc[-2])
+            
+            if bias == 1 and bearish_start:
+                return None  # 1h YÜKSELİŞ'te SAT sinyali verme!
+            if bias == -1 and bullish_start:
+                return None  # 1h DÜŞÜŞ'te AL sinyali verme!
+        except:
+            pass
+    # ────────────────────────────────
 
     profile  = get_coin_profile(symbol)
     base_sl  = profile["sl_mult"]
     tp_mult  = profile["tp_mult"]
     sl_mult  = get_dynamic_sl_mult(cur_strength, base_sl)
-    
-    # Dinamik SL: Sıkışmada genişle, trendde daral
-    dynamic_sl_mult = get_dynamic_atr_mult(cur_strength)
-    sl_mult = max(base_sl_mult, dynamic_sl_mult)  # Hangisi büyükse onu kullan
 
     if bullish_start:
         sl = cur_price - sl_mult * cur_atr
@@ -318,7 +315,6 @@ def detect_signal(symbol: str, timeframe: str = "1h",
             "reason":           reason,
         }
 
-    # bearish_start
     sl = cur_price + sl_mult * cur_atr
     tp = cur_price - tp_mult * cur_atr
     reason = (
