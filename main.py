@@ -34,7 +34,7 @@ from alerts import (
     mark_alert_triggered, delete_alert,
 )
 from watchlist import (
-    add_coin, remove_coin, set_timeframe,
+    add_coin, remove_coin, set_timeframe, set_mtf_timeframe,
     get_user_settings, get_all_users_with_coins,
     update_last_signal, get_last_signal, VALID_TIMEFRAMES,
 )
@@ -859,7 +859,11 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
         timeframe = user["timeframe"]
         for symbol in user["coins"]:
             try:
-                sig = detect_signal(symbol, timeframe)
+                # Kullanıcının MTF ayarını al
+                user_mtf = user.get("mtf_timeframe", "1h")
+                sig = detect_signal(symbol, timeframe, 
+                                    use_mtf=True, 
+                                    higher_tf=user_mtf)
                 if sig is None:
                     continue
 
@@ -1014,6 +1018,25 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
 
+async def setmtf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """MTF üst zaman dilimini ayarlar."""
+    if not context.args or context.args[0] not in VALID_TIMEFRAMES:
+        await update.message.reply_text(
+            f"Kullanım: /setmtf <zaman>\n"
+            f"Geçerli: {' | '.join(VALID_TIMEFRAMES)}\n"
+            f"Örnek: /setmtf 4h\n\n"
+            f"MTF: Üst zaman dilimi ana trendi belirler.\n"
+            f"15dk'da tarama yaparken üst trende ters sinyaller engellenir."
+        )
+        return
+    tf = context.args[0]
+    set_mtf_timeframe(update.effective_user.id, tf)
+    await update.message.reply_text(
+        f"✅ MTF üst zaman dilimi *{tf}* olarak güncellendi.\n"
+        f"Ana trend yönü bu zaman diliminden alınacak.",
+        parse_mode="Markdown"
+    )
+
 
 async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
     """Her 3 dakikada fiyat alarmlarını kontrol eder."""
@@ -1094,6 +1117,7 @@ def main():
     app.add_handler(CommandHandler("removecoin",   removecoin_command))
     app.add_handler(CommandHandler("watchlist",    watchlist_command))
     app.add_handler(CommandHandler("setinterval",  setinterval_command))
+    app.add_handler(CommandHandler("setmtf",       setmtf_command))
     app.add_handler(CommandHandler("top",          top_command))
     app.add_handler(CommandHandler("scan20",       scan20_command))
     app.add_handler(CommandHandler("dashboard",    dashboard_command))
