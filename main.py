@@ -57,51 +57,63 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 # HELP METNİ
 # ══════════════════════════════════════════════════════════════════════
 HELP_TEXT = f"""
-*Kripto Sinyal Botu — Komutlar*
+🤖 *Kripto Sinyal Botu — Tüm Komutlar*
 
 📊 *Fiyat & Analiz*
 /price <coin> — Anlık fiyat + fonlama oranı
-/signals <coin> — Trend analizi, ATR, RSI detayı
+/signals <coin> — Trend analizi, ATR, RSI, SL/TP detayı
+/signals <coin> <tf> — Belirtilen zaman diliminde analiz
 
 📋 *Takip Listesi*
 /addcoin <coin> — Coin ekle
 /removecoin <coin> — Coin çıkar
-/watchlist — Takip listeni göster
+/watchlist — Takip listeni ve son sinyalleri göster
 /setinterval <zaman> — Zaman dilimi (1m 5m 15m 30m 1h 4h 1d)
+/setmtf <zaman> — MTF üst trend zaman dilimi
+/smartwl — En iyi 10 coin'i otomatik seç (mevcut TF)
+/smartwl <zaman> — Belirtilen TF'de akıllı watchlist
 /dashboard — Tüm takip coinlerin trend özeti
 
-🔍 *Tarama*
-/top — Takip listesini puana göre sırala
-/scan20 — Binance Top 20 hacim taraması
+🔍 *Tarama & Sıralama*
+/top — Takip listesini R² + RSI puanına göre sırala
+/scan20 — Binance Top 20 hacim + trend taraması
 
-📡 *Sinyaller*
-/opensignals — Açık sinyaller ve güncel durum
-/stats — İstatistikler (başarı oranı, P&L)
-/stats <coin> — Belirli bir coin için istatistik
-/history — Son kapatılan sinyaller
-/history <coin> — Belirli bir coin için geçmiş
+📡 *Sinyal Takibi*
+/opensignals — Açık sinyaller, P&L, SL/TP durumu
+/stats — Genel istatistikler (win rate, P&L, drawdown)
+/stats <coin> — Coin bazlı istatistik
+/history — Son kapanan sinyaller (sayfalı)
+/history <coin> — Coin bazlı sinyal geçmişi
 
 📈 *Backtest*
 /backtest <coin> <gün> — Geçmiş performans testi
+Örnek: /backtest BTC 30 → 30 günlük backtest
 
 🔔 *Fiyat Alarmları*
-/alert <coin> <üstünde|altında> <fiyat>
-/myalerts — Aktif alarmlarım
+/alert <coin> <üstünde|altında> <fiyat> — Alarm kur
+/myalerts — Aktif alarmlarım (silme butonlu)
 /delalert <id> — Alarm sil
 
-🔧 *Diğer*
-/debug — Bot durum raporu
+🔧 *Sistem*
+/debug — Bot durumu, MongoDB, AI, dosya kontrolü
 
-📌 *Örnekler*
-`/addcoin BTC`
-`/setinterval 4h`
-`/signals ETH`
-`/backtest SOL 30`
-`/alert BTC üstünde 100000`
+📌 *Örnek Kullanım*
+`/addcoin BTC` — Bitcoin'i takibe al
+`/setinterval 15m` — 15 dakikalık tarama
+`/setmtf 1h` — Ana trend 1 saatlik
+`/smartwl` — En iyi 10 coin'i otomatik bul
+`/signals ETH` — ETH detaylı analiz
+`/backtest SOL 30` — SOL 30 günlük backtest
+`/alert BTC üstünde 100000` — BTC $100K alarmı
 
-*Strateji:* Trend Analizi (Pine Script — Mr\\_Rakun)
-Yöntem: `{TREND_METHOD}` | Periyot: {TREND_PERIOD} bar | Min R²: %{TREND_STRENGTH_MIN}
-SL/TP: Coin bazlı ATR çarpanı | Trailing Stop aktif
+🧠 *Strateji Detayları*
+📐 Yöntem: {TREND_METHOD} (Pine Script Mr_Rakun)
+📏 Periyot: {TREND_PERIOD} bar | Min R²: %{TREND_STRENGTH_MIN}
+🛡️ Dinamik SL (R² bazlı genişler/daralır)
+🎯 TP/SL: Coin bazlı ATR çarpanı (1:2 R:R)
+📊 MTF: Üst zaman dilimi trend filtresi
+🔒 Spam koruması: Aynı yön tekrarı engellenir
+💾 Veritabanı: MongoDB Atlas (kalıcı)
 """
 
 
