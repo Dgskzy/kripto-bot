@@ -149,28 +149,39 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def smartwl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """En uygun 10 coin'i otomatik seçer ve takip listesini günceller."""
-    msg = await update.message.reply_text("🧠 En iyi 10 coin taranıyor...\nBu işlem 1-2 dakika sürebilir.")
+    """En uygun 10 coin'i otomatik seçer."""
+    
+    # Kullanıcının zaman dilimini al
+    settings = get_user_settings(update.effective_user.id)
+    timeframe = settings.get("timeframe", "15m")
+    
+    # Veya komutla belirtilen zaman dilimi
+    if context.args:
+        tf = context.args[0]
+        if tf in VALID_TIMEFRAMES:
+            timeframe = tf
+    
+    msg = await update.message.reply_text(f"🧠 En iyi 10 coin taranıyor... ({timeframe})\nBu işlem 1-2 dakika sürebilir.")
     
     try:
-        coins = scan_best_coins(timeframe="15m", limit=50, top_n=10)
+        coins = scan_best_coins(timeframe=timeframe, limit=50, top_n=10)
         
         if not coins:
             await msg.edit_text("❌ Tarama başarısız.")
             return
         
         user_id = update.effective_user.id
-        settings = get_user_settings(user_id)
+        user_settings = get_user_settings(user_id)
         
         # Eski listeyi temizle
-        for old in settings.get("coins", []):
+        for old in user_settings.get("coins", []):
             remove_coin(user_id, old)
         
         # Yeni coin'leri ekle
         for coin in coins:
             add_coin(user_id, coin["symbol"])
         
-        lines = ["🧠 *AKILLI WATCHLIST* — En İyi 10 Coin\n"]
+        lines = [f"🧠 *AKILLI WATCHLIST* — {timeframe}\n"]
         for i, c in enumerate(coins, 1):
             medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
             lines.append(
