@@ -42,6 +42,8 @@ def get_coin_profile(symbol: str) -> dict:
     base = symbol.split("/")[0] if "/" in symbol else symbol
     return VOLATILITY_PROFILES.get(base, VOLATILITY_PROFILES["default"])
 
+
+
 def get_dynamic_sl_mult(r2_score: float, base_sl: float) -> float:
     """
     R² yüksekse (sıkışma) → SL genişler (erken stop önlenir)
@@ -237,11 +239,11 @@ def _strength_label(s: float) -> str:
 # ══════════════════════════════════════════════════════════════════════
 # SİNYAL FONKSİYONLARI
 # ══════════════════════════════════════════════════════════════════════
-
 def detect_signal(symbol: str, timeframe: str = "1h",
                   method: str = TREND_METHOD,
                   trend_period: int = TREND_PERIOD,
-                  use_mtf: bool = True) -> dict | None:
+                  use_mtf: bool = True,
+                  higher_tf: str = "1h") -> dict | None:  # ← YENİ
     """
     Trend yönü değişimini algılar → AL/SAT sinyali üretir.
     Pine Script: bullishStart / bearishStart mantığı.
@@ -272,7 +274,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
 
     # ──────── MTF FİLTRESİ ────────
     if use_mtf and timeframe in ("15m", "5m", "1m"):
-        higher_tf = "1h"
+        # higher_tf parametresini kullan
         try:
             df_htf = get_ohlcv(symbol, timeframe=higher_tf, limit=150)
             trend_htf = compute_trend_series(df_htf, trend_period, method)
