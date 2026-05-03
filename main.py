@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 from flask import Flask
+from smart_watchlist import scan_best_coins
 from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from funding_filter import get_funding_info
@@ -145,6 +146,45 @@ async def price_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ '{raw}' için fiyat alınamadı. Coin sembolünü kontrol edin.\nÖrnek: BTC, ETH, SOL"
         )
+
+
+async def smartwl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """En uygun 10 coin'i otomatik seçer ve takip listesini günceller."""
+    msg = await update.message.reply_text("🧠 En iyi 10 coin taranıyor...\nBu işlem 1-2 dakika sürebilir.")
+    
+    try:
+        coins = scan_best_coins(timeframe="15m", limit=50, top_n=10)
+        
+        if not coins:
+            await msg.edit_text("❌ Tarama başarısız.")
+            return
+        
+        user_id = update.effective_user.id
+        settings = get_user_settings(user_id)
+        
+        # Eski listeyi temizle
+        for old in settings.get("coins", []):
+            remove_coin(user_id, old)
+        
+        # Yeni coin'leri ekle
+        for coin in coins:
+            add_coin(user_id, coin["symbol"])
+        
+        lines = ["🧠 *AKILLI WATCHLIST* — En İyi 10 Coin\n"]
+        for i, c in enumerate(coins, 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            lines.append(
+                f"{medal} *{c['symbol']}* — Puan: `{c['score']}`\n"
+                f"  R²: `%{c['avg_r2']}` | Vol: `%{c['volatility']}` | "
+                f"Değişim: `{c['trend_changes']}`"
+            )
+        
+        lines.append(f"\n✅ Takip listeniz güncellendi! `/watchlist` ile kontrol edin.")
+        await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"SmartWL error: {e}")
+        await msg.edit_text(f"❌ Tarama başarısız: {e}")
 
 
 async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1038,6 +1078,7 @@ def main():
     app.add_handler(CommandHandler("help",         help_command))
     app.add_handler(CommandHandler("price",        price_command))
     app.add_handler(CommandHandler("signals",      signals_command))
+    app.add_handler(CommandHandler("smartwl",      smartwl_command))
     app.add_handler(CommandHandler("addcoin",      addcoin_command))
     app.add_handler(CommandHandler("removecoin",   removecoin_command))
     app.add_handler(CommandHandler("watchlist",    watchlist_command))
