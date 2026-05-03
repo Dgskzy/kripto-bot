@@ -26,15 +26,18 @@ def scan_best_coins(timeframe="15m", limit=50, top_n=10):
             atr_val = float(df["close"].pct_change().tail(20).std() * 100)
             volume = tickers[symbol].get("quoteVolume", 0)
             
-            # PUAN
-            score = min(avg_r2 * 0.4, 40)  # R²
-            score += max(0, 30 - trend_changes * 5)  # Kararlılık
-            score += min(atr_val * 3, 20)  # Volatilite
-            score += min(np.log10(volume + 1) * 2, 10)  # Hacim
+            # PUAN HESAPLAMA
+            score = min(avg_r2 * 0.4, 40)  # R² (max 40)
+            score += max(0, 30 - trend_changes * 5)  # Kararlılık (max 30)
+            score += min(atr_val * 3, 20)  # Volatilite (max 20)
+            score += min(np.log10(volume + 1) * 2, 10)  # Hacim (max 10)
             
             results.append({
                 "symbol": symbol,
                 "avg_r2": round(avg_r2, 1),
+                "trend_changes": trend_changes,
+                "volatility": round(atr_val, 2),
+                "volume": volume,
                 "score": round(score, 1),
             })
         except:
