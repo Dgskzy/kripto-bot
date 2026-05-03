@@ -13,14 +13,14 @@ DEFAULT_COINS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "L
 def _get(user_id: int) -> dict:
     uid = str(user_id)
     doc = col.find_one({"_id": uid})
-if not doc:
-    doc = {
-        "_id": uid,
-        "coins": DEFAULT_COINS.copy(),
-        "timeframe": "1h",
-        "mtf_timeframe": "1h",   # ← BU SATIRI EKLE
-        "last_signals": {},
-    }
+    if not doc:
+        doc = {
+            "_id": uid,
+            "coins": DEFAULT_COINS.copy(),
+            "timeframe": "1h",
+            "mtf_timeframe": "1h",
+            "last_signals": {},
+        }
         col.insert_one(doc)
     return doc
 
