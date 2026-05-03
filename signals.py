@@ -243,7 +243,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
                   method: str = TREND_METHOD,
                   trend_period: int = TREND_PERIOD,
                   use_mtf: bool = True,
-                  higher_tf: str = "1h") -> dict | None:  # ← YENİ
+                  higher_tf: str = "1h") -> dict | None:   # ← BU SATIR DEĞİŞTİ
     """
     Trend yönü değişimini algılar → AL/SAT sinyali üretir.
     Pine Script: bullishStart / bearishStart mantığı.
