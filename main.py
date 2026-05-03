@@ -96,6 +96,8 @@ HELP_TEXT = f"""
 
 🔧 *Sistem*
 /debug — Bot durumu, MongoDB, AI, dosya kontrolü
+/settings — Tüm ayarlarını göster (TTF, MTF, coin'ler)
+/ayar — /settings kısayolu
 
 📌 *Örnek Kullanım*
 `/addcoin BTC` — Bitcoin'i takibe al
@@ -1078,6 +1080,45 @@ async def check_alerts(context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Alert check error {alert.id}: {e}")
 
+async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kullanıcının tüm ayarlarını gösterir."""
+    user_id = update.effective_user.id
+    settings = get_user_settings(user_id)
+    
+    timeframe = settings.get("timeframe", "1h")
+    mtf = settings.get("mtf_timeframe", "1h")
+    coins = settings.get("coins", [])
+    
+    lines = [
+        "⚙️ *AYARLARIM*\n",
+        f"⏱ Tetik Zaman Dilimi: *{timeframe}*",
+        f"📊 MTF Ana Trend: *{mtf}*",
+        f"📋 Takip Listesi: *{len(coins)}* coin",
+    ]
+    
+    if coins:
+        lines.append(f"   {', '.join(coins[:10])}")
+        if len(coins) > 10:
+            lines.append(f"   ... ve {len(coins)-10} coin daha")
+    
+    lines.append(f"\n📐 Trend Yöntemi: *{TREND_METHOD}*")
+    lines.append(f"📏 Periyot: *{TREND_PERIOD}* bar")
+    lines.append(f"🎯 Min R²: *%{TREND_STRENGTH_MIN}*")
+    lines.append(f"💰 R:R Oranı: *1:2*")
+    lines.append(f"🛡️ Dinamik SL: *Aktif*")
+    lines.append(f"📊 MTF Filtresi: *{'Aktif' if timeframe in ('15m','5m','1m') else 'Pasif'}*")
+    
+    lines.append(f"\n⏱ Tarama: Her 10 dk")
+    lines.append(f"🔔 Alarm: Her 3 dk")
+    lines.append(f"🛡️ SL/TP: Her 5 dk")
+    
+    lines.append(f"\n💡 Değiştirmek için:")
+    lines.append(f"  /setinterval <tf>")
+    lines.append(f"  /setmtf <tf>")
+    lines.append(f"  /smartwl")
+    
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1140,6 +1181,8 @@ def main():
     app.add_handler(CommandHandler("myalerts",     myalerts_command))
     app.add_handler(CommandHandler("delalert",     delalert_command))
     app.add_handler(CommandHandler("backtest",     backtest_command))
+    app.add_handler(CommandHandler("ayar",         settings_command))
+    app.add_handler(CommandHandler("settings",     settings_command))
     app.add_handler(CommandHandler("debug",        debug_command))
     app.add_handler(CallbackQueryHandler(button_callback))
 
