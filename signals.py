@@ -17,7 +17,7 @@ SYMBOL_ALIASES = {
 TREND_PERIOD       = 20           # Trend hesaplama periyodu (5-200)
 TREND_METHOD       = "Linear Regression"
 # Seçenekler: "Linear Regression" | "MA Crossover" | "High/Low" | "Momentum" | "ADX"
-TREND_STRENGTH_MIN = 30           # Sinyal için minimum R² skoru (0-100)
+TREND_STRENGTH_MIN = 40          # Sinyal için minimum R² skoru (0-100)
 
 SL_ATR_MULT = 1.5
 TP_ATR_MULT = 3.0
@@ -34,7 +34,7 @@ VOLATILITY_PROFILES = {
     "default": {"sl_mult": 1.5, "tp_mult": 3.0}, # 1:2.5
 }
 
-TRAIL_ACTIVATION = 0.3
+TRAIL_ACTIVATION = 0.5
 TRAIL_DISTANCE   = 1.5
 
 
