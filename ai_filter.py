@@ -33,11 +33,12 @@ class AISignalFilter:
         self.scaler    = StandardScaler()
         self.is_trained = False
         self.load_model()
-
+        
     def extract_features(self, signal_data: dict) -> np.ndarray | None:
         price = signal_data.get("entry_price", 0)
-        if price == 0:
-            return None
+        if price == 0 or price is None:
+            price = 100.0  # Varsayılan değer
+            
 
         features = []
 
