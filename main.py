@@ -855,6 +855,12 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append("🔔 Alarm: Her 3 dk'da bir")
     lines.append("🛡️ SL/TP: Her 5 dk'da bir")
 
+    # AI eğitim butonu
+    if not ai_filter.is_trained:
+        keyboard = [[InlineKeyboardButton("🤖 AI'ı Eğit (Geçmiş Trade'lerle)", callback_data="train_ai")]]
+        await update.message.reply_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
     await update.message.reply_text("\n".join(lines))
 
 
@@ -1141,6 +1147,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id  = query.from_user.id
         text, keyboard = _build_history_message(user_id, symbol, page)
         await query.edit_message_text(text, reply_markup=keyboard)
+
+    # ⬇️ BURAYA EKLE ⬇️
+    elif query.data == "train_ai":
+        await query.answer("⏳ AI eğitiliyor...")
+        from open_signals import col as open_col
+        closed = list(open_col.find({"user_id": query.from_user.id, "status": {"$ne": "open"}}))
+        
+        count = 0
+        for s in closed:
+            s["id"] = s.get("_id", s.get("id", ""))
+            ai_filter.add_trade_data(s, s.get("status", "sl_hit"))
+            count += 1
+        
+        if ai_filter.is_trained:
+            await query.edit_message_text(f"✅ AI başarıyla eğitildi! ({count} trade kullanıldı)\nBundan sonra sinyallerde AI onayı göreceksin.")
+        else:
+            await query.edit_message_text(f"❌ AI eğitilemedi. ({count} trade işlendi)\nDaha fazla veri gerekebilir.")
 
 
 # ══════════════════════════════════════════════════════════════════════
