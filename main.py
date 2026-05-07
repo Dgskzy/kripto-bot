@@ -1175,16 +1175,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # AI veri dosyasını kontrol et
         import os, json
         data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
-        data_count = 0
+        
         if os.path.exists(data_file):
             with open(data_file) as f:
-                data = json.load(f)
-                data_count = len(data)
+                all_data = json.load(f)
+            ai_filter.train(all_data)  # ← ZORLA EĞİT!
     
         if ai_filter.is_trained:
-            await query.edit_message_text(f"✅ AI eğitildi! ({count} trade, {skipped} atlandı, {data_count} veride)")
+            await query.edit_message_text(f"✅ AI eğitildi! ({len(all_data)} veri)")
         else:
-            await query.edit_message_text(f"❌ AI eğitilemedi.\nİşlenen: {count}\nAtlanan: {skipped}\nToplam veri: {data_count}\n\nTP: {sum(1 for s in closed if s.get('status')=='tp_hit')}\nSL: {sum(1 for s in closed if s.get('status')=='sl_hit')}")
+            await query.edit_message_text(f"❌ AI eğitilemedi. Veri: {len(all_data)}, TP: {sum(1 for d in all_data if d.get('result')=='tp_hit')}")
 
 
 # ══════════════════════════════════════════════════════════════════════
