@@ -81,29 +81,37 @@ class AISignalFilter:
 
         X, y = [], []
         for trade in trades_data:
-            feats  = trade.get("features", [])
+            feats = trade.get("features", [])
             result = trade.get("result", "SL")
             if len(feats) == 7:
                 X.append(feats)
                 y.append(1 if result == "TP" else 0)
 
-        if len(X) < 10 or sum(y) == 0 or sum(y) == len(y):
+        if len(X) < 10:
+            return False
+    
+        # En az 2 TP ve 2 SL olmalı
+        if sum(y) < 2 or (len(y) - sum(y)) < 2:
             return False
 
-        X = np.array(X)
-        y = np.array(y)
-        X_scaled = self.scaler.fit_transform(X)
+        try:
+            X = np.array(X)
+            y = np.array(y)
+            X_scaled = self.scaler.fit_transform(X)
 
-        self.model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=5,
-            random_state=42,
-        )
-        self.model.fit(X_scaled, y)
-        self.is_trained = True
-        self.save_model()
-        return True
-
+            self.model = RandomForestClassifier(
+                n_estimators=50,    # 100 → 50 (daha hızlı)
+                max_depth=3,        # 5 → 3 (daha basit)
+                random_state=42,
+            )
+            self.model.fit(X_scaled, y)
+            self.is_trained = True
+            self.save_model()
+            return True
+        except Exception as e:
+            print(f"Train error: {e}")
+            return False
+            
     def predict(self, signal_data: dict) -> dict:
         """
         Sinyalin kârlı olma olasılığını tahmin eder.
