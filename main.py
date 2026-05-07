@@ -1210,6 +1210,21 @@ def main():
         logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
         return
 
+    # 🤖 BOT BAŞLARKEN AI'I OTOMATİK EĞİT
+    import os, json
+    data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
+    if os.path.exists(data_file):
+        try:
+            with open(data_file) as f:
+                all_data = json.load(f)
+            if len(all_data) >= 10:
+                result = ai_filter.train(all_data)
+                logger.info(f"AI auto-train: {'BAŞARILI' if result else 'BAŞARISIZ'} ({len(all_data)} trade)")
+        except Exception as e:
+            logger.error(f"AI auto-train error: {e}")
+
+    # ... gerisi aynı (Render Web Service vs.)
+
     # Render Web Service sağlık kontrolü
     app_flask = Flask(__name__)
 
