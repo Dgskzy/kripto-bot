@@ -1181,10 +1181,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 all_data = json.load(f)
             ai_filter.train(all_data)  # ← ZORLA EĞİT!
     
-        if ai_filter.is_trained:
-            await query.edit_message_text(f"✅ AI eğitildi! ({len(all_data)} veri)")
+        # Veriyi kontrol et ve zorla eğit
+        import os, json
+        data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
+        if os.path.exists(data_file):
+            with open(data_file) as f:
+                all_data = json.load(f)
+        
+            valid = sum(1 for d in all_data if len(d.get("features", [])) == 7)
+            tp_count = sum(1 for d in all_data if d.get("result") == "tp_hit")
+        
+            ai_filter.train(all_data)
+        
+            if ai_filter.is_trained:
+                await query.edit_message_text(f"✅ AI eğitildi! ({len(all_data)} veri, {tp_count} TP)")
+            else:
+                await query.edit_message_text(f"❌ AI eğitilemedi.\nVeri: {len(all_data)}\n7 özellikli: {valid}\nTP: {tp_count}")
         else:
-            await query.edit_message_text(f"❌ AI eğitilemedi. Veri: {len(all_data)}, TP: {sum(1 for d in all_data if d.get('result')=='tp_hit')}")
+            await query.edit_message_text("❌ Veri dosyası bulunamadı.")
 
 
 # ══════════════════════════════════════════════════════════════════════
