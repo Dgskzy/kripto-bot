@@ -1029,6 +1029,8 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
                 ),
             )
             logger.info(f"Signal {s['id']} closed: {status}")
+            # 🤖 AI eğitimi için trade verisini kaydet
+            ai_filter.add_trade_data(s, status)
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
 
