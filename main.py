@@ -1154,10 +1154,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         closed = list(open_col.find({"user_id": query.from_user.id, "status": {"$ne": "open"}}))
     
         count = 0
+        skipped = 0
         for s in closed:
             s["id"] = s.get("_id", s.get("id", ""))
-            # Eksik alanları tamamla
             if "entry_price" not in s:
+                skipped += 1
                 continue
             s.setdefault("trend_direction", 1 if s.get("signal_type") == "BUY" else -1)
             s.setdefault("trend_strength", 50.0)
@@ -1166,14 +1167,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             s.setdefault("sl_mult", 1.5)
             s.setdefault("tp_mult", 3.0)
             s.setdefault("funding_rate", 0.0)
+            s.setdefault("entry_price", 100.0)
         
             ai_filter.add_trade_data(s, s.get("status", "sl_hit"))
             count += 1
     
+        # AI veri dosyasını kontrol et
+        import os, json
+        data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
+        data_count = 0
+        if os.path.exists(data_file):
+            with open(data_file) as f:
+                data = json.load(f)
+                data_count = len(data)
+    
         if ai_filter.is_trained:
-            await query.edit_message_text(f"✅ AI başarıyla eğitildi! ({count} trade kullanıldı)")
+            await query.edit_message_text(f"✅ AI eğitildi! ({count} trade, {skipped} atlandı, {data_count} veride)")
         else:
-            await query.edit_message_text(f"❌ AI eğitilemedi. ({count} trade işlendi) Eksik veri olabilir.")
+            await query.edit_message_text(f"❌ AI eğitilemedi.\nİşlenen: {count}\nAtlanan: {skipped}\nToplam veri: {data_count}\n\nTP: {sum(1 for s in closed if s.get('status')=='tp_hit')}\nSL: {sum(1 for s in closed if s.get('status')=='sl_hit')}")
 
 
 # ══════════════════════════════════════════════════════════════════════
