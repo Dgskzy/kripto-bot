@@ -310,7 +310,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     # ══════════════════════════════════════════════════
     # MTF FİLTRESİ
     # ══════════════════════════════════════════════════
-    if use_mtf and timeframe in ("15m", "5m", "1m"):
+    if use_mtf and timeframe in ("15m", "5m", "1m", "30m"):
         try:
             df_htf = get_ohlcv(symbol, timeframe=higher_tf, limit=150)
             trend_htf = compute_trend_series(df_htf, trend_period, method)
