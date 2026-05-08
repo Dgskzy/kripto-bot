@@ -61,8 +61,15 @@ class AISignalFilter:
             if len(feats) == 7:
                 X.append(feats)
                 # P&L bazlı: %0.5'ten fazla kâr = başarılı
-                pnl = trade.get("pnl", 0)
-                y.append(1 if pnl > 0.5 else 0)
+                # YENİ:
+                pnl = trade.get("pnl", None)
+                if pnl is not None and pnl != 0:
+                    # P&L varsa onu kullan
+                    y.append(1 if pnl > 0.1 else 0)
+                else:
+                    # P&L yoksa eski TP/SL etiketini kullan
+                    result = trade.get("result", "sl_hit")
+                    y.append(1 if result in ("TP", "tp_hit") else 0)
 
         if len(X) < 10 or sum(y) < 2 or (len(y) - sum(y)) < 2:
             return False
