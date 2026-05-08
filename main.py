@@ -1114,6 +1114,7 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             signal_data = {
                 "id": s.get("id", ""),
                 "entry_price": s.get("entry_price", 0),
+                "pnl_pct": pnl_pct if 'pnl_pct' in dir() else 0,  # ← BU EKLENDİ
                 "trend_direction": 1 if s.get("signal_type") == "BUY" else -1,
                 "trend_strength": s.get("trend_strength", 50.0),
                 "rsi": s.get("rsi", 50.0),
