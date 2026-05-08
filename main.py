@@ -1179,7 +1179,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"🎯 Min R²: *%{TREND_STRENGTH_MIN}*")
     lines.append(f"💰 R:R Oranı: *1:2*")
     lines.append(f"🛡️ Dinamik SL: *Aktif*")
-    lines.append(f"📊 MTF Filtresi: *{'Aktif' if timeframe in ('15m','5m','1m') else 'Pasif'}*")
+    lines.append(f"📊 MTF Filtresi: *{'Aktif' if timeframe in ('15m','5m','1m','30m') else 'Pasif'}*")
     
     lines.append(f"\n⏱ Tarama: Her 10 dk")
     lines.append(f"🔔 Alarm: Her 3 dk")
