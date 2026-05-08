@@ -331,6 +331,9 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     tp_mult  = profile["tp_mult"]
     sl_mult  = get_dynamic_sl_mult(cur_strength, base_sl)
 
+                      
+    neutral_bars = int((trend_series.tail(10) == 0).sum())
+                      
     if bullish_start:
         sl = cur_price - sl_mult * cur_atr
         tp = cur_price + tp_mult * cur_atr
@@ -353,6 +356,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
             "trend_strength":   round(cur_strength, 1),
             "trend_direction":  1,
             "reason":           reason,
+            "neutral_bars":     neutral_bars,  # ← BU SATIRI EKLE
         }
 
     sl = cur_price + sl_mult * cur_atr
@@ -376,6 +380,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         "trend_strength":   round(cur_strength, 1),
         "trend_direction":  -1,
         "reason":           reason,
+        "neutral_bars":     neutral_bars,  # ← BU SATIRI EKLE
     }
 
 def calculate_signals(symbol: str, timeframe: str = "1h",
