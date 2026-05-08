@@ -6,7 +6,7 @@ from smart_watchlist import scan_best_coins
 from watchlist import DEFAULT_COINS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from funding_filter import get_funding_info
-from trailing_stop import calc_trailing_sl
+from trailing_stop import calc_trailing_sl, calc_trailing_duo
 from ai_filter import ai_filter
 from market_regime import detect_market_regime, should_trade
 from telegram.ext import (
@@ -1039,19 +1039,31 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
         try:
             cur_price = get_current_price(s["symbol"])
 
-            # Trailing stop güncelle
-            new_sl = calc_trailing_sl(
+            # Dinamik SL + Dinamik TP güncelle
+            trend_strength = s.get("trend_strength", 50.0)  # Sinyaldeki R² değeri
+            new_sl, new_tp = calc_trailing_duo(
                 signal_type=s["signal_type"],
                 entry_price=s["entry_price"],
                 current_price=cur_price,
                 atr=s.get("atr", 0),
                 original_sl=s["stop_loss"],
                 original_tp=s["take_profit"],
+                trend_strength=trend_strength,
                 sl_mult=s.get("sl_mult", 1.5),
+                tp_mult=s.get("tp_mult", 3.0),
             )
+
+            updated = False
+
             if new_sl != s["stop_loss"]:
                 s["stop_loss"] = new_sl
                 _update_signal_sl(s["id"], new_sl)
+                updated = True
+
+            if new_tp != s["take_profit"]:
+                s["take_profit"] = new_tp
+                _update_signal_tp(s["id"], new_tp)
+                updated = True
 
             status = check_and_update_signal(s, cur_price)
             if status == "open":
