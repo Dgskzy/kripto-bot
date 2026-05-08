@@ -2,141 +2,99 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
-import joblib
 import os
-import json
+import io
+import joblib
+import pickle
+from pymongo import MongoClient
 
-MODEL_FILE  = os.path.join(os.path.dirname(__file__), "ai_model.pkl")
-SCALER_FILE = os.path.join(os.path.dirname(__file__), "ai_scaler.pkl")
-DATA_FILE   = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
+# ── MongoDB bağlantısı ──────────────────────────────────────────────
+MONGODB_URI = os.environ.get("MONGODB_URI")
+_client = MongoClient(MONGODB_URI)
+_db     = _client["kripto_bot"]
+_col    = _db["ai_training_data"]   # Yeni koleksiyon
+_model_col = _db["ai_model_store"]  # Model binary'si için
 
 
 class AISignalFilter:
     """
-    Yapay Zeka Sinyal Filtresi
+    Yapay Zeka Sinyal Filtresi — MongoDB tabanlı kalıcı depolama
 
-    Geçmiş trade verilerinden öğrenerek yeni sinyallerin
-    kârlı olma olasılığını tahmin eder.
-
-    Özellikler (v2 — Trend Analizi uyumlu):
+    Özellikler (7 adet):
     1. Trend yönü         (1=Yükseliş, -1=Düşüş)
     2. Trend gücü R²      (0-100)
     3. RSI                (0-100)
     4. ATR / Fiyat %      (volatilite)
     5. Sinyal tipi        (BUY=1, SELL=-1)
     6. Risk/Ödül oranı    (tp_mult / sl_mult)
-    7. Fonlama oranı      (varsa, yoksa 0)
+    7. Fonlama oranı
     """
 
     def __init__(self):
-        self.model     = None
-        self.scaler    = StandardScaler()
+        self.model      = None
+        self.scaler     = StandardScaler()
         self.is_trained = False
-        self.load_model()
-        
+        self._load_model_from_mongo()
+
+    # ── Özellik çıkarımı ──────────────────────────────────────────
     def extract_features(self, signal_data: dict) -> np.ndarray | None:
-        price = signal_data.get("entry_price", 0)
-        if price == 0 or price is None:
-            price = 100.0  # Varsayılan değer
-            
+        price = signal_data.get("entry_price", 0) or 100.0
 
-        features = []
-
-        # 1. Trend yönü
-        trend_dir = signal_data.get("trend_direction", 0)
-        features.append(float(trend_dir))
-
-        # 2. Trend gücü R²
-        trend_str = signal_data.get("trend_strength", 50.0)
-        features.append(float(trend_str))
-
-        # 3. RSI
-        rsi = signal_data.get("rsi", 50)
-        features.append(float(rsi))
-
-        # 4. Volatilite (ATR / Fiyat %)
-        atr     = signal_data.get("atr", 0)
-        atr_pct = atr / price * 100 if price > 0 else 0
-        features.append(float(atr_pct))
-
-        # 5. Sinyal tipi (BUY=1, SELL=-1)
-        sig_type = 1 if signal_data.get("signal_type") == "BUY" else -1
-        features.append(float(sig_type))
-
-        # 6. Risk/Ödül oranı
-        sl_mult  = signal_data.get("sl_mult", 1.5)
-        tp_mult  = signal_data.get("tp_mult", 3.0)
-        rr_ratio = tp_mult / sl_mult if sl_mult > 0 else 0
-        features.append(float(rr_ratio))
-
-        # 7. Fonlama oranı
-        funding_rate = signal_data.get("funding_rate", 0.0)
-        features.append(float(funding_rate))
-
+        features = [
+            float(signal_data.get("trend_direction", 0)),
+            float(signal_data.get("trend_strength", 50.0)),
+            float(signal_data.get("rsi", 50)),
+            float(signal_data.get("atr", 0)) / price * 100,
+            1.0 if signal_data.get("signal_type") == "BUY" else -1.0,
+            float(signal_data.get("tp_mult", 3.0)) / max(float(signal_data.get("sl_mult", 1.5)), 0.01),
+            float(signal_data.get("funding_rate", 0.0)),
+        ]
         return np.array(features).reshape(1, -1)
 
+    # ── Eğitim ────────────────────────────────────────────────────
     def train(self, trades_data: list) -> bool:
         if len(trades_data) < 10:
             return False
 
         X, y = [], []
         for trade in trades_data:
-            feats = trade.get("features", [])
+            feats  = trade.get("features", [])
             result = trade.get("result", "sl_hit")
             if len(feats) == 7:
                 X.append(feats)
                 y.append(1 if result in ("TP", "tp_hit") else 0)
 
-        if len(X) < 10:
-            return False
-    
-        # En az 2 TP ve 2 SL olmalı
-        if sum(y) < 2 or (len(y) - sum(y)) < 2:
+        if len(X) < 10 or sum(y) < 2 or (len(y) - sum(y)) < 2:
             return False
 
         try:
-            X = np.array(X)
-            y = np.array(y)
-            X_scaled = self.scaler.fit_transform(X)
-
+            X_scaled = self.scaler.fit_transform(np.array(X))
             self.model = RandomForestClassifier(
-                n_estimators=50,    # 100 → 50 (daha hızlı)
-                max_depth=3,        # 5 → 3 (daha basit)
-                random_state=42,
+                n_estimators=50, max_depth=3, random_state=42
             )
-            self.model.fit(X_scaled, y)
+            self.model.fit(X_scaled, np.array(y))
             self.is_trained = True
-            self.save_model()
+            self._save_model_to_mongo()
             return True
         except Exception as e:
             print(f"Train error: {e}")
             return False
-            
+
+    # ── Tahmin ────────────────────────────────────────────────────
     def predict(self, signal_data: dict) -> dict:
-        """
-        Sinyalin kârlı olma olasılığını tahmin eder.
-        Döndürdüğü: {"probability": float, "confidence": str, "approved": bool}
-        """
         if not self.is_trained or self.model is None:
             return {"probability": 50.0, "confidence": "NO_MODEL", "approved": True}
 
-        features = self.extract_features(signal_data)
-        if features is None:
-            return {"probability": 50.0, "confidence": "NO_DATA", "approved": True}
-
-        features_scaled = self.scaler.transform(features)
+        features_scaled = self.scaler.transform(self.extract_features(signal_data))
         proba    = self.model.predict_proba(features_scaled)[0]
         win_prob = proba[1] if len(proba) > 1 else 0.5
 
         if win_prob >= 0.65:
-            confidence = "HIGH"
-            approved   = True
+            confidence, approved = "HIGH",   True
         elif win_prob >= 0.45:
-            confidence = "MEDIUM"
-            approved   = True
+            confidence, approved = "MEDIUM", True
         else:
-            confidence = "LOW"
-            approved   = False
+            confidence, approved = "LOW",    False
 
         return {
             "probability": round(win_prob * 100, 1),
@@ -144,49 +102,67 @@ class AISignalFilter:
             "approved":    approved,
         }
 
-    def save_model(self):
-        if self.model and self.is_trained:
-            joblib.dump(self.model,  MODEL_FILE)
-            joblib.dump(self.scaler, SCALER_FILE)
-
-    def load_model(self):
-        if os.path.exists(MODEL_FILE) and os.path.exists(SCALER_FILE):
-            try:
-                self.model     = joblib.load(MODEL_FILE)
-                self.scaler    = joblib.load(SCALER_FILE)
-                self.is_trained = True
-            except Exception:
-                pass
-
+    # ── Trade verisi ekle → MongoDB ───────────────────────────────
     def add_trade_data(self, signal_data: dict, result: str):
-        """Yeni trade verisini eğitim setine ekler; 5 trade'de bir yeniden eğitir."""
         features = self.extract_features(signal_data)
         if features is None:
             return
 
-        # ✅ Sonucu normalize et — her iki formatta sakla tutarlı olsun
-        normalized_result = "tp_hit" if result in ("TP", "tp_hit") else "sl_hit"
+        normalized = "tp_hit" if result in ("TP", "tp_hit") else "sl_hit"
 
-        data = []
-        if os.path.exists(DATA_FILE):
-            with open(DATA_FILE, "r") as f:
-                try:
-                    data = json.load(f)
-                except Exception:
-                    data = []
-
-        data.append({
+        _col.insert_one({
             "features":  features.flatten().tolist(),
-            "result":    normalized_result,
+            "result":    normalized,
             "timestamp": str(pd.Timestamp.now()),
         })
-        data = data[-500:]   # Son 500 trade'i tut
 
-        with open(DATA_FILE, "w") as f:
-            json.dump(data, f, indent=2)
+        # Son 500 kaydı tut (eskiyi sil)
+        total = _col.count_documents({})
+        if total > 500:
+            oldest = list(_col.find({}, {"_id": 1}).sort("timestamp", 1).limit(total - 500))
+            ids = [d["_id"] for d in oldest]
+            _col.delete_many({"_id": {"$in": ids}})
 
-        if len(data) >= 10 and len(data) % 5 == 0:
-            self.train(data)
+        # Her 5 trade'de bir yeniden eğit
+        count = _col.count_documents({})
+        if count >= 10 and count % 5 == 0:
+            all_data = list(_col.find({}, {"_id": 0}))
+            self.train(all_data)
+
+    # ── MongoDB'den tüm veriyi yükle ve eğit ─────────────────────
+    def train_from_mongo(self) -> bool:
+        all_data = list(_col.find({}, {"_id": 0}))
+        if not all_data:
+            return False
+        return self.train(all_data)
+
+    def get_stats(self) -> dict:
+        total = _col.count_documents({})
+        tp    = _col.count_documents({"result": "tp_hit"})
+        return {"total": total, "tp": tp, "sl": total - tp}
+
+    # ── Model kaydet / yükle (MongoDB binary) ─────────────────────
+    def _save_model_to_mongo(self):
+        try:
+            model_bytes  = pickle.dumps(self.model)
+            scaler_bytes = pickle.dumps(self.scaler)
+            _model_col.replace_one(
+                {"_id": "ai_model"},
+                {"_id": "ai_model", "model": model_bytes, "scaler": scaler_bytes},
+                upsert=True,
+            )
+        except Exception as e:
+            print(f"Model save error: {e}")
+
+    def _load_model_from_mongo(self):
+        try:
+            doc = _model_col.find_one({"_id": "ai_model"})
+            if doc:
+                self.model   = pickle.loads(doc["model"])
+                self.scaler  = pickle.loads(doc["scaler"])
+                self.is_trained = True
+        except Exception as e:
+            print(f"Model load error: {e}")
 
 
 # Global instance
