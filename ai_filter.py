@@ -53,7 +53,7 @@ class AISignalFilter:
 
     # ── Eğitim ────────────────────────────────────────────────────
     def train(self, trades_data: list) -> bool:
-        if len(trades_data) < 10:
+        if len(trades_data) < 5:
             return False
 
         X, y = [], []
@@ -64,7 +64,7 @@ class AISignalFilter:
                 X.append(feats)
                 y.append(1 if result in ("TP", "tp_hit") else 0)
 
-        if len(X) < 10 or sum(y) < 2 or (len(y) - sum(y)) < 2:
+        if len(X) < 5 or sum(y) < 1 or (len(y) - sum(y)) < 1:
             return False
 
         try:
