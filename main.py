@@ -179,10 +179,10 @@ async def smartwl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if tf in VALID_TIMEFRAMES:
             timeframe = tf
     
-    msg = await update.message.reply_text(f"🧠 En iyi 10 coin taranıyor... ({timeframe})\nBu işlem 1-2 dakika sürebilir.")
+    msg = await update.message.reply_text(f"🧠 En iyi 20 coin taranıyor... ({timeframe})\nBu işlem 1-2 dakika sürebilir.")
     
     try:
-        coins = scan_best_coins(timeframe=timeframe, limit=50, top_n=10)
+        coins = scan_best_coins(timeframe=timeframe, limit=100, top_n=20)
         
         if not coins:
             await msg.edit_text("❌ Tarama başarısız.")
@@ -476,7 +476,10 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg   = await update.message.reply_text(f"⏳ {len(coins)} coin analiz ediliyor...")
     lines = [f"📊 *DASHBOARD* — {timeframe}\n"]
 
-    for symbol in coins:
+    # 15'ten fazla coin varsa sadece en iyi 10'u göster
+    display_coins = coins[:10] if len(coins) > 10 else coins
+
+    for symbol in display_coins:
         try:
             d = get_dashboard_data(symbol, timeframe)
             lines.append(
@@ -488,6 +491,10 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Dashboard error {symbol}: {e}")
             lines.append(f"*{symbol}* — ❌ Veri alınamadı\n")
+
+    # Fazla coin varsa not düş
+    if len(coins) > 10:
+        lines.append(f"\n📋 *+{len(coins)-10} coin daha* (tamamı için /watchlist)")
 
     await msg.edit_text("\n".join(lines))
 
@@ -808,10 +815,31 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📋 *TAKİP LİSTESİ* — {len(coins)} coin",
         f"⏱ Zaman dilimi: *{timeframe}*\n",
     ]
-    for i, coin in enumerate(coins, 1):
-        last_sig  = get_last_signal(user_id, coin)
-        sig_icon  = "🟢" if last_sig == "BUY" else "🔴" if last_sig == "SELL" else "⚪"
-        lines.append(f"{i}. {coin} {sig_icon} {last_sig or 'Sinyal yok'}")
+    
+    # 15'ten fazla coin varsa 2 sütunlu göster
+    if len(coins) > 15:
+        half = (len(coins) + 1) // 2
+        for i in range(half):
+            left_coin  = coins[i]
+            left_sig   = get_last_signal(user_id, left_coin)
+            left_icon  = "🟢" if left_sig == "BUY" else "🔴" if left_sig == "SELL" else "⚪"
+            left_text  = f"{i+1}. {left_coin} {left_icon}"
+            
+            right_idx  = i + half
+            if right_idx < len(coins):
+                right_coin = coins[right_idx]
+                right_sig  = get_last_signal(user_id, right_coin)
+                right_icon = "🟢" if right_sig == "BUY" else "🔴" if right_sig == "SELL" else "⚪"
+                right_text = f"{right_idx+1}. {right_coin} {right_icon}"
+                lines.append(f"{left_text}  |  {right_text}")
+            else:
+                lines.append(left_text)
+    else:
+        # 15 veya az coin - normal liste
+        for i, coin in enumerate(coins, 1):
+            last_sig  = get_last_signal(user_id, coin)
+            sig_icon  = "🟢" if last_sig == "BUY" else "🔴" if last_sig == "SELL" else "⚪"
+            lines.append(f"{i}. {coin} {sig_icon} {last_sig or 'Sinyal yok'}")
 
     lines.append("\n/removecoin <coin> ile çıkarabilirsiniz.")
     await update.message.reply_text("\n".join(lines))
@@ -882,7 +910,10 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
     for user in users:
         user_id   = user["user_id"]
         timeframe = user["timeframe"]
-        for symbol in user["coins"]:
+        coins     = user["coins"]
+        
+        delay = 1.0 if len(coins) > 15 else 0
+        for symbol in coins:
             try:
                 # Kullanıcının MTF ayarını al
                 user_mtf = user.get("mtf_timeframe", "1h")
@@ -937,6 +968,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                                     f"Signal ID: {old['id']}"
                                 ),
                             )
+                           
                         except Exception as e:
                             logger.error(f"Reversal notify error {old['id']}: {e}")
 
@@ -982,6 +1014,10 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                     ),
                 )
                 logger.info(f"Signal sent: {sig['signal_type']} {symbol} to user {user_id}")
+                if delay > 0:
+                    import asyncio
+                    await asyncio.sleep(delay)
+                
             except Exception as e:
                 logger.error(f"Scan error {symbol} user {user_id}: {e}")
 
