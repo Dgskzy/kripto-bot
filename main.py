@@ -948,9 +948,20 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
 
                 last = get_last_signal(user_id, symbol)
 
-                # Aynı yön → spam engelle
+                # ═══════ SPAM KORUMASI (v3 - Re-Entry) ═══════
                 if last == sig["signal_type"]:
-                    continue
+                    neutral_bars = sig.get("neutral_bars", 0)
+                    strength = sig.get("trend_strength", 0)
+                    
+                    # İstisna 1: 4+ mum NÖTR → Re-entry izni
+                    if neutral_bars >= 4:
+                        quality = f"YENİDEN GİRİŞ - {quality}"
+                    # İstisna 2: Süper güçlü trend (R² > 80)
+                    elif strength > 80:
+                        quality = f"SÜPER TREND - {quality}"
+                    else:
+                        continue  # Normal spam
+                # ════════════════════════════════════════════
 
                 # Yön değişti → mevcut açık pozisyonları kapat
                 if last != "":
