@@ -82,10 +82,10 @@ class AISignalFilter:
         X, y = [], []
         for trade in trades_data:
             feats = trade.get("features", [])
-            result = trade.get("result", "SL")
+            result = trade.get("result", "sl_hit")
             if len(feats) == 7:
                 X.append(feats)
-                y.append(1 if result == "TP" else 0)
+                y.append(1 if result in ("TP", "tp_hit") else 0)
 
         if len(X) < 10:
             return False
@@ -164,6 +164,9 @@ class AISignalFilter:
         if features is None:
             return
 
+        # ✅ Sonucu normalize et — her iki formatta sakla tutarlı olsun
+        normalized_result = "tp_hit" if result in ("TP", "tp_hit") else "sl_hit"
+
         data = []
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
@@ -174,7 +177,7 @@ class AISignalFilter:
 
         data.append({
             "features":  features.flatten().tolist(),
-            "result":    result,
+            "result":    normalized_result,
             "timestamp": str(pd.Timestamp.now()),
         })
         data = data[-500:]   # Son 500 trade'i tut
