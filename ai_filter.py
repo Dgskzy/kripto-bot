@@ -116,6 +116,7 @@ class AISignalFilter:
             return
 
         normalized = "tp_hit" if result in ("TP", "tp_hit") else "sl_hit"
+        pnl_val = signal_data.get("pnl_pct", 0)
 
         # Sinyal ID'sini _id olarak kullan → duplicate engeller
         signal_id = str(signal_data.get("id") or signal_data.get("_id") or "")
