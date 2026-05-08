@@ -196,3 +196,9 @@ def _update_signal_sl(signal_id: str, new_sl: float):
         {"_id": signal_id, "status": "open"},
         {"$set": {"stop_loss": round(new_sl, 6)}},
     )
+
+def _update_signal_tp(signal_id: str, new_tp: float):
+    col.update_one(
+        {"_id": signal_id, "status": "open"},
+        {"$set": {"take_profit": round(new_tp, 6)}},
+    )
