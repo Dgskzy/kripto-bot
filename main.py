@@ -1149,81 +1149,75 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=keyboard)
 
     elif query.data == "train_ai":
-        await query.answer("⏳ AI eğitiliyor...")
-        from open_signals import col as open_col
-        closed = list(open_col.find({"user_id": query.from_user.id, "status": {"$ne": "open"}}))
-    
-        count = 0
-        skipped = 0
-        for s in closed:
-            s["id"] = s.get("_id", s.get("id", ""))
-            if "entry_price" not in s:
-                skipped += 1
-                continue
-            s.setdefault("trend_direction", 1 if s.get("signal_type") == "BUY" else -1)
-            s.setdefault("trend_strength", 50.0)
-            s.setdefault("rsi", 50.0)
-            s.setdefault("atr", 0.01)
-            s.setdefault("sl_mult", 1.5)
-            s.setdefault("tp_mult", 3.0)
-            s.setdefault("funding_rate", 0.0)
-            s.setdefault("entry_price", 100.0)
-        
-            ai_filter.add_trade_data(s, s.get("status", "sl_hit"))
-            count += 1
-    
-        # AI veri dosyasını kontrol et
-        import os, json
-        data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
-        
-        if os.path.exists(data_file):
-            with open(data_file) as f:
-                all_data = json.load(f)
-            ai_filter.train(all_data)  # ← ZORLA EĞİT!
-    
-        # Veriyi kontrol et ve zorla eğit
-        import os, json
-        data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
-        if os.path.exists(data_file):
-            with open(data_file) as f:
-                all_data = json.load(f)
-        
-            valid = sum(1 for d in all_data if len(d.get("features", [])) == 7)
-            tp_count = sum(1 for d in all_data if d.get("result") == "tp_hit")
-        
-            ai_filter.train(all_data)
-        
-            if ai_filter.is_trained:
-                await query.edit_message_text(f"✅ AI eğitildi! ({len(all_data)} veri, {tp_count} TP)")
+            await query.answer("⏳ AI eğitiliyor...")
+
+        # Geçmiş trade'leri MongoDB'den al ve ai_training_data koleksiyonuna aktar
+            from open_signals import col as open_col
+            closed = list(open_col.find({
+                "user_id": query.from_user.id,
+                "status": {"$ne": "open"}
+            }))
+
+            imported = 0
+            for s in closed:
+                s["id"] = s.get("_id", "")
+                if "entry_price" not in s:
+                    continue
+                s.setdefault("trend_direction", 1 if s.get("signal_type") == "BUY" else -1)
+                s.setdefault("trend_strength", 50.0)
+                s.setdefault("rsi", 50.0)
+                s.setdefault("atr", 0.01)
+                s.setdefault("sl_mult", 1.5)
+                s.setdefault("tp_mult", 3.0)
+                s.setdefault("funding_rate", 0.0)
+                ai_filter.add_trade_data(s, s.get("status", "sl_hit"))
+                imported += 1
+
+            # MongoDB'deki tüm veriyle eğit
+            stats  = ai_filter.get_stats()
+            result = ai_filter.train_from_mongo()
+
+            if result:
+                await query.edit_message_text(
+                    f"✅ AI eğitildi!\n\n"
+                    f"📊 Toplam veri: {stats['total']}\n"
+                    f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n"
+                    f"📥 Bu oturumda aktarılan: {imported}"
+                )
             else:
-                await query.edit_message_text(f"❌ AI eğitilemedi.\nVeri: {len(all_data)}\n7 özellikli: {valid}\nTP: {tp_count}")
-        else:
-            await query.edit_message_text("❌ Veri dosyası bulunamadı.")
+                await query.edit_message_text(
+                    f"❌ AI eğitilemedi.\n\n"
+                    f"📊 Toplam veri: {stats['total']}\n"
+                    f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n\n"
+                    f"En az 10 trade ve 2'şer TP/SL gerekli."
+                )
 
 
 # ══════════════════════════════════════════════════════════════════════
 # ANA UYGULAMA
 # ══════════════════════════════════════════════════════════════════════
 
-def main():
-    if not TOKEN:
-        logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
-        return
 
-    # 🤖 BOT BAŞLARKEN AI'I OTOMATİK EĞİT
-    import os, json
-    data_file = os.path.join(os.path.dirname(__file__), "ai_training_data.json")
-    if os.path.exists(data_file):
+    def main():
+        if not TOKEN:
+            logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
+            return
+
+        # 🤖 BOT BAŞLARKEN AI'I MONGODB'DEN OTOMATİK EĞİT
         try:
-            with open(data_file) as f:
-                all_data = json.load(f)
-            if len(all_data) >= 10:
-                result = ai_filter.train(all_data)
-                logger.info(f"AI auto-train: {'BAŞARILI' if result else 'BAŞARISIZ'} ({len(all_data)} trade)")
+            stats = ai_filter.get_stats()
+            if stats["total"] >= 10:
+                result = ai_filter.train_from_mongo()
+                logger.info(
+                    f"AI auto-train: {'BAŞARILI' if result else 'BAŞARISIZ'} "
+                    f"({stats['total']} trade, {stats['tp']} TP)"
+                )
+            else:
+                logger.info(f"AI: Yetersiz veri ({stats['total']} trade), eğitim atlandı.")
         except Exception as e:
             logger.error(f"AI auto-train error: {e}")
 
-    # ... gerisi aynı (Render Web Service vs.)
+    # ... geri kalanı aynı
 
     # Render Web Service sağlık kontrolü
     app_flask = Flask(__name__)
