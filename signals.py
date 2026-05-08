@@ -243,12 +243,14 @@ def detect_signal(symbol: str, timeframe: str = "1h",
                   method: str = TREND_METHOD,
                   trend_period: int = TREND_PERIOD,
                   use_mtf: bool = True,
-                  higher_tf: str = "1h") -> dict | None:   # ← BU SATIR DEĞİŞTİ
+                  higher_tf: str = "1h") -> dict | None:
     """
     Trend yönü değişimini algılar → AL/SAT sinyali üretir.
-    Pine Script: bullishStart / bearishStart mantığı.
-    Güç filtresi: R² >= TREND_STRENGTH_MIN
-    MTF: 1h bias + 15m/5m tetik
+    
+    FİLTRELER (v3 - Optimize):
+    1. R² minimum (dinamik eşik)
+    2. Onay mumu
+    3. Hacim
     """
     df              = get_ohlcv(symbol, timeframe=timeframe, limit=150)
     atr_series      = calc_atr(df)
@@ -256,12 +258,14 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     trend_series    = compute_trend_series(df, trend_period, method)
     strength_series = compute_strength_series(df["close"], trend_period)
 
+    # En son kapalı mum (sinyal bunun üzerine)
     cur_trend    = int(trend_series.iloc[-2])
     prev_trend   = int(trend_series.iloc[-3])
     cur_strength = float(strength_series.iloc[-2])
     cur_price    = float(df["close"].iloc[-2])
     cur_atr      = float(atr_series.iloc[-2])
     cur_rsi      = float(rsi_series.iloc[-2])
+    cur_volume   = float(df["volume"].iloc[-2])
 
     bullish_start = (prev_trend != 1)  and (cur_trend == 1)
     bearish_start = (prev_trend != -1) and (cur_trend == -1)
@@ -269,25 +273,59 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     if not (bullish_start or bearish_start):
         return None
 
-    if cur_strength < TREND_STRENGTH_MIN:
+    # ══════════════════════════════════════════════════
+    # FİLTRE 1: HACİM KONTROLÜ
+    # ══════════════════════════════════════════════════
+    avg_volume = float(df["volume"].tail(20).mean())
+    if cur_volume < avg_volume * 0.6:  # Hacim ortalamanın %60'ından azsa
+        return None  # Düşük hacimli fakeout, atla
+
+    # ══════════════════════════════════════════════════
+    # FİLTRE 2: ONAY MUMU
+    # ══════════════════════════════════════════════════
+    next_trend = int(trend_series.iloc[-1])  # En son kapalı mum
+    
+    if bullish_start and next_trend != 1:
+        return None  # Sahte sinyal: yükseliş trendi devam etmedi
+    if bearish_start and next_trend != -1:
+        return None  # Sahte sinyal: düşüş trendi devam etmedi
+
+    # ══════════════════════════════════════════════════
+    # FİLTRE 3: DİNAMİK R² EŞİĞİ
+    # ══════════════════════════════════════════════════
+    base_coin = symbol.split("/")[0]
+    atr_pct = (cur_atr / cur_price) * 100
+    
+    # Piyasa durumuna göre R² eşiği belirle
+    if atr_pct >= 1.5:  # Yüksek volatilite = trendli piyasa
+        min_r2 = 35  # Düşük eşik, trend zaten güçlü
+    elif atr_pct >= 0.8:  # Normal volatilite
+        min_r2 = 45  # Orta eşik
+    else:  # Düşük volatilite = sıkışma
+        min_r2 = 55  # Yüksek eşik, fakeout'ları engelle
+    
+    if cur_strength < min_r2:
         return None
 
-    # ──────── MTF FİLTRESİ ────────
+    # ══════════════════════════════════════════════════
+    # MTF FİLTRESİ
+    # ══════════════════════════════════════════════════
     if use_mtf and timeframe in ("15m", "5m", "1m"):
-        # higher_tf parametresini kullan
         try:
             df_htf = get_ohlcv(symbol, timeframe=higher_tf, limit=150)
             trend_htf = compute_trend_series(df_htf, trend_period, method)
             bias = int(trend_htf.iloc[-2])
             
             if bias == 1 and bearish_start:
-                return None  # 1h YÜKSELİŞ'te SAT sinyali verme!
+                return None
             if bias == -1 and bullish_start:
-                return None  # 1h DÜŞÜŞ'te AL sinyali verme!
+                return None
         except:
             pass
-    # ────────────────────────────────
 
+    # ══════════════════════════════════════════════════
+    # SİNYALİ OLUŞTUR
+    # ══════════════════════════════════════════════════
     profile  = get_coin_profile(symbol)
     base_sl  = profile["sl_mult"]
     tp_mult  = profile["tp_mult"]
@@ -298,9 +336,9 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         tp = cur_price + tp_mult * cur_atr
         reason = (
             f"Trend YÜKSELİŞ'e döndü — {method}\n"
-            f"R² Trend Gücü: %{cur_strength:.1f} ({_strength_label(cur_strength)})\n"
-            f"RSI: {cur_rsi:.1f}\n"
-            f"SL: {sl_mult}×ATR | TP: {tp_mult}×ATR | R:K 1:{tp_mult / sl_mult:.1f}"
+            f"R² Trend Gücü: %{cur_strength:.1f} (min %{min_r2})\n"
+            f"RSI: {cur_rsi:.1f} | Hacim: {cur_volume/avg_volume:.1f}x ort.\n"
+            f"SL: {sl_mult}×ATR | TP: {tp_mult}×ATR | R:K 1:{tp_mult/sl_mult:.1f}"
         )
         return {
             "signal_type":      "BUY",
@@ -321,9 +359,9 @@ def detect_signal(symbol: str, timeframe: str = "1h",
     tp = cur_price - tp_mult * cur_atr
     reason = (
         f"Trend DÜŞÜŞ'e döndü — {method}\n"
-        f"R² Trend Gücü: %{cur_strength:.1f} ({_strength_label(cur_strength)})\n"
-        f"RSI: {cur_rsi:.1f}\n"
-        f"SL: {sl_mult}×ATR | TP: {tp_mult}×ATR | R:K 1:{tp_mult / sl_mult:.1f}"
+        f"R² Trend Gücü: %{cur_strength:.1f} (min %{min_r2})\n"
+        f"RSI: {cur_rsi:.1f} | Hacim: {cur_volume/avg_volume:.1f}x ort.\n"
+        f"SL: {sl_mult}×ATR | TP: {tp_mult}×ATR | R:K 1:{tp_mult/sl_mult:.1f}"
     )
     return {
         "signal_type":      "SELL",
@@ -339,7 +377,6 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         "trend_direction":  -1,
         "reason":           reason,
     }
-
 
 def calculate_signals(symbol: str, timeframe: str = "1h",
                        method: str = TREND_METHOD,
