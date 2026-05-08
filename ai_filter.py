@@ -3,8 +3,6 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 import os
-import io
-import joblib
 import pickle
 from pymongo import MongoClient
 
@@ -12,8 +10,8 @@ from pymongo import MongoClient
 MONGODB_URI = os.environ.get("MONGODB_URI")
 _client = MongoClient(MONGODB_URI)
 _db     = _client["kripto_bot"]
-_col    = _db["ai_training_data"]   # Yeni koleksiyon
-_model_col = _db["ai_model_store"]  # Model binary'si için
+_col    = _db["ai_training_data"]
+_model_col = _db["ai_model_store"]
 
 
 class AISignalFilter:
@@ -53,7 +51,7 @@ class AISignalFilter:
 
     # ── Eğitim ────────────────────────────────────────────────────
     def train(self, trades_data: list) -> bool:
-        if len(trades_data) < 5:
+        if len(trades_data) < 10:
             return False
 
         X, y = [], []
@@ -64,7 +62,7 @@ class AISignalFilter:
                 X.append(feats)
                 y.append(1 if result in ("TP", "tp_hit") else 0)
 
-        if len(X) < 5 or sum(y) < 1 or (len(y) - sum(y)) < 1:
+        if len(X) < 10 or sum(y) < 2 or (len(y) - sum(y)) < 2:
             return False
 
         try:
@@ -102,7 +100,7 @@ class AISignalFilter:
             "approved":    approved,
         }
 
-    # ── Trade verisi ekle → MongoDB ───────────────────────────────
+    # ── Trade verisi ekle → MongoDB (DUPLICATE KONTROLLÜ) ─────────
     def add_trade_data(self, signal_data: dict, result: str):
         features = self.extract_features(signal_data)
         if features is None:
@@ -110,11 +108,18 @@ class AISignalFilter:
 
         normalized = "tp_hit" if result in ("TP", "tp_hit") else "sl_hit"
 
-        _col.insert_one({
+        # Sinyal ID'sini _id olarak kullan → duplicate engeller
+        signal_id = str(signal_data.get("id") or signal_data.get("_id") or "")
+        doc = {
             "features":  features.flatten().tolist(),
             "result":    normalized,
             "timestamp": str(pd.Timestamp.now()),
-        })
+        }
+        if signal_id:
+            doc["_id"] = signal_id
+            _col.replace_one({"_id": signal_id}, doc, upsert=True)
+        else:
+            _col.insert_one(doc)
 
         # Son 500 kaydı tut (eskiyi sil)
         total = _col.count_documents({})
