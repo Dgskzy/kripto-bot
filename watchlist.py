@@ -90,3 +90,8 @@ def set_mtf_timeframe(user_id: int, timeframe: str):
         {"_id": str(user_id)},
         {"$set": {"mtf_timeframe": timeframe}}
     )
+
+def get_all_last_signals(user_id: int) -> dict:
+    """Kullanıcının tüm coin'ler için son sinyal kayıtlarını döndürür."""
+    doc = _get(user_id)
+    return doc.get("last_signals", {})
