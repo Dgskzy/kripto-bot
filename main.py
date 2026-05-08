@@ -879,8 +879,8 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         lines.append(f"🗄️ MongoDB: ❌ {str(e)[:30]}")
 
-    ai_path = os.path.join(os.path.dirname(__file__), "ai_model.pkl")
-    lines.append(f"   {'✅' if os.path.exists(ai_path) else '❌'} ai_model.pkl")
+        model_in_db = _model_col.count_documents({"_id": "ai_model"}) > 0
+        lines.append(f"   {'✅' if model_in_db else '❌'} ai_model (MongoDB)")
 
     try:
         regime = detect_market_regime("BTC/USDT")
