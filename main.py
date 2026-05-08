@@ -1036,6 +1036,12 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             )
             logger.info(f"Signal {s['id']} closed: {status}")
             # 🤖 AI eğitimi için trade verisini kaydet
+            # P&L hesapla
+            if s["signal_type"] == "BUY":
+                pnl = (close_px - s["entry_price"]) / s["entry_price"] * 100
+            else:
+                pnl = (s["entry_price"] - close_px) / s["entry_price"] * 100
+
             ai_filter.add_trade_data(s, status)
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
@@ -1147,51 +1153,56 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id  = query.from_user.id
         text, keyboard = _build_history_message(user_id, symbol, page)
         await query.edit_message_text(text, reply_markup=keyboard)
-
+        
     elif query.data == "train_ai":
-            await query.answer("⏳ AI eğitiliyor...")
+        await query.answer("⏳ AI eğitiliyor...")
 
-        # Geçmiş trade'leri MongoDB'den al ve ai_training_data koleksiyonuna aktar
-            from open_signals import col as open_col
-            closed = list(open_col.find({
-                "user_id": query.from_user.id,
-                "status": {"$ne": "open"}
-            }))
+        # Mevcut açık sinyallerden kapanmış olanları temizle
+        from open_signals import col as open_col
+        all_closed = list(open_col.find({"status": {"$ne": "open"}}))
 
-            imported = 0
-            for s in closed:
-                s["id"] = s.get("_id", "")
-                if "entry_price" not in s:
-                    continue
-                s.setdefault("trend_direction", 1 if s.get("signal_type") == "BUY" else -1)
-                s.setdefault("trend_strength", 50.0)
-                s.setdefault("rsi", 50.0)
-                s.setdefault("atr", 0.01)
-                s.setdefault("sl_mult", 1.5)
-                s.setdefault("tp_mult", 3.0)
-                s.setdefault("funding_rate", 0.0)
-                ai_filter.add_trade_data(s, s.get("status", "sl_hit"))
-                imported += 1
+        imported = 0
+        skipped = 0
+        for s in all_closed:
+            signal_id = str(s.get("_id", ""))
+            if not signal_id or "entry_price" not in s:
+                continue
+        
+            # Varsayılan değerleri doldur
+            signal_data = {
+                "id": signal_id,
+                "entry_price": s.get("entry_price", 0),
+                "trend_direction": 1 if s.get("signal_type") == "BUY" else -1,
+                "trend_strength": s.get("trend_strength", 50.0),
+                "rsi": s.get("rsi", 50.0),
+                "atr": s.get("atr", 0.01),
+                "signal_type": s.get("signal_type", "BUY"),
+                "sl_mult": s.get("sl_mult", 1.5),
+                "tp_mult": s.get("tp_mult", 3.0),
+                "funding_rate": s.get("funding_rate", 0.0),
+            }
+        
+            ai_filter.add_trade_data(signal_data, s.get("status", "sl_hit"))
+            imported += 1
 
-            # MongoDB'deki tüm veriyle eğit
-            stats  = ai_filter.get_stats()
-            result = ai_filter.train_from_mongo()
+        stats = ai_filter.get_stats()
+        result = ai_filter.train_from_mongo()
 
-            if result:
-                await query.edit_message_text(
-                    f"✅ AI eğitildi!\n\n"
-                    f"📊 Toplam veri: {stats['total']}\n"
-                    f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n"
-                    f"📥 Bu oturumda aktarılan: {imported}"
-                )
-            else:
-                await query.edit_message_text(
-                    f"❌ AI eğitilemedi.\n\n"
-                    f"📊 Toplam veri: {stats['total']}\n"
-                    f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n\n"
-                    f"En az 10 trade ve 2'şer TP/SL gerekli."
-                )
-
+        if result:
+            await query.edit_message_text(
+                f"✅ AI başarıyla eğitildi!\n\n"
+                f"📊 Toplam benzersiz trade: {stats['total']}\n"
+                f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n"
+                f"📥 Yeni eklenen: {imported}"
+            )
+        else:
+            await query.edit_message_text(
+                f"❌ AI eğitilemedi - yetersiz veri\n\n"
+                f"📊 Toplam trade: {stats['total']}\n"
+                f"✅ TP: {stats['tp']}  |  ❌ SL: {stats['sl']}\n\n"
+                f"En az 10 trade ve 2'şer TP/SL gerekli.\n"
+                f"Daha fazla sinyal kapanmasını bekleyin."
+            )
 
 # ══════════════════════════════════════════════════════════════════════
 # ANA UYGULAMA
