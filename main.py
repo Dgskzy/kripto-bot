@@ -899,12 +899,12 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append("🛡️ SL/TP: Her 5 dk'da bir")
 
     # AI eğitim butonu
-    if not ai_filter.is_trained:
-        keyboard = [[InlineKeyboardButton("🤖 AI'ı Eğit (Geçmiş Trade'lerle)", callback_data="train_ai")]]
-        await update.message.reply_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(keyboard))
-        return
 
-    await update.message.reply_text("\n".join(lines))
+    # Her zaman göster (eğitilse de)
+    keyboard = [[InlineKeyboardButton("🤖 AI'ı Yeniden Eğit", callback_data="train_ai")]]
+    await update.message.reply_text("\n".join(lines), reply_markup=InlineKeyboardMarkup(keyboard))
+
+   
 
 
 # ══════════════════════════════════════════════════════════════════════
