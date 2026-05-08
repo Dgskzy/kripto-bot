@@ -110,11 +110,15 @@ HELP_TEXT = f"""
 
 🧠 *Strateji Detayları*
 📐 Yöntem: {TREND_METHOD} (Pine Script Mr_Rakun)
-📏 Periyot: {TREND_PERIOD} bar | Min R²: %{TREND_STRENGTH_MIN}
+📏 Periyot: {TREND_PERIOD} bar | Min R²: Dinamik (35-55)
 🛡️ Dinamik SL (R² bazlı genişler/daralır)
 🎯 TP/SL: Coin bazlı ATR çarpanı (1:2 R:R)
 📊 MTF: Üst zaman dilimi trend filtresi
 🔒 Spam koruması: Aynı yön tekrarı engellenir
+🛡️ Yeni Filtreler (v3):
+  ✅ Onay Mumu: Trend değişimi 2 mum onaylı
+  📊 Hacim: Düşük hacimli fakeout'lar elenir
+  💪 Dinamik R²: Piyasa durumuna göre eşik ayarlanır
 💾 Veritabanı: MongoDB Atlas (kalıcı)
 """
 
@@ -849,7 +853,8 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"🤖 AI: {'Eğitildi' if ai_filter.is_trained else 'Henüz eğitilmedi'}")
     lines.append("")
     lines.append(f"📐 Trend Yöntemi: {TREND_METHOD}")
-    lines.append(f"📏 Periyot: {TREND_PERIOD} bar | Min R²: %{TREND_STRENGTH_MIN}")
+    lines.append(f"📏 Periyot: {TREND_PERIOD} bar | Min R²: Dinamik (35-55)")
+    lines.append(f"🛡️ Filtreler: Onay Mumu ✅ | Hacim ✅ | Dinamik R² ✅")
     lines.append("")
     lines.append("⏱ Tarama: Her 10 dk'da bir")
     lines.append("🔔 Alarm: Her 3 dk'da bir")
