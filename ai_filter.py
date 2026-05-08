@@ -60,7 +60,9 @@ class AISignalFilter:
             result = trade.get("result", "sl_hit")
             if len(feats) == 7:
                 X.append(feats)
-                y.append(1 if result in ("TP", "tp_hit") else 0)
+                # P&L bazlı: %0.5'ten fazla kâr = başarılı
+                pnl = trade.get("pnl", 0)
+                y.append(1 if pnl > 0.5 else 0)
 
         if len(X) < 10 or sum(y) < 2 or (len(y) - sum(y)) < 2:
             return False
@@ -113,6 +115,7 @@ class AISignalFilter:
         doc = {
             "features":  features.flatten().tolist(),
             "result":    normalized,
+            "pnl":       signal_data.get("pnl_pct", 0),  # ← BU EKLENDİ
             "timestamp": str(pd.Timestamp.now()),
         }
         if signal_id:
