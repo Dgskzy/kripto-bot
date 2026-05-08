@@ -1197,25 +1197,24 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ANA UYGULAMA
 # ══════════════════════════════════════════════════════════════════════
 
+def main():
+    if not TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
+        return
 
-    def main():
-        if not TOKEN:
-            logger.error("TELEGRAM_BOT_TOKEN bulunamadı!")
-            return
-
-        # 🤖 BOT BAŞLARKEN AI'I MONGODB'DEN OTOMATİK EĞİT
-        try:
-            stats = ai_filter.get_stats()
-            if stats["total"] >= 10:
-                result = ai_filter.train_from_mongo()
-                logger.info(
-                    f"AI auto-train: {'BAŞARILI' if result else 'BAŞARISIZ'} "
-                    f"({stats['total']} trade, {stats['tp']} TP)"
-                )
-            else:
-                logger.info(f"AI: Yetersiz veri ({stats['total']} trade), eğitim atlandı.")
-        except Exception as e:
-            logger.error(f"AI auto-train error: {e}")
+    # 🤖 BOT BAŞLARKEN AI'I MONGODB'DEN OTOMATİK EĞİT
+    try:
+        stats = ai_filter.get_stats()
+        if stats["total"] >= 10:
+            result = ai_filter.train_from_mongo()
+            logger.info(
+                f"AI auto-train: {'BAŞARILI' if result else 'BAŞARISIZ'} "
+                f"({stats['total']} trade, {stats['tp']} TP)"
+            )
+        else:
+            logger.info(f"AI: Yetersiz veri ({stats['total']} trade), eğitim atlandı.")
+    except Exception as e:
+        logger.error(f"AI auto-train error: {e}")
 
     # ... geri kalanı aynı
 
