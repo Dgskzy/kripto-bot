@@ -188,16 +188,26 @@ async def smartwl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await msg.edit_text("❌ Tarama başarısız.")
             return
         
+        # main.py - smartwl_command içinde (YENİ)
+
         user_id = update.effective_user.id
         user_settings = get_user_settings(user_id)
-        
+
+        # 👇 Eski son sinyal kayıtlarını sakla
+        old_signals = user_settings.get("last_signals", {})
+
         # Eski listeyi temizle
         for old in user_settings.get("coins", []):
             remove_coin(user_id, old)
-        
+
         # Yeni coin'leri ekle
         for coin in coins:
             add_coin(user_id, coin["symbol"])
+            symbol = coin["symbol"]
+    
+            # 👇 Eğer bu coin için eski sinyal kaydı varsa geri yükle
+            if symbol in old_signals:
+                update_last_signal(user_id, symbol, old_signals[symbol])
         
         lines = [f"🧠 *AKILLI WATCHLIST* — {timeframe}\n"]
         for i, c in enumerate(coins, 1):
