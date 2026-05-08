@@ -1035,14 +1035,22 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
                 ),
             )
             logger.info(f"Signal {s['id']} closed: {status}")
+            
             # 🤖 AI eğitimi için trade verisini kaydet
-            # P&L hesapla
-            if s["signal_type"] == "BUY":
-                pnl = (close_px - s["entry_price"]) / s["entry_price"] * 100
-            else:
-                pnl = (s["entry_price"] - close_px) / s["entry_price"] * 100
-
-            ai_filter.add_trade_data(s, status)
+            signal_data = {
+                "id": s.get("id", ""),
+                "entry_price": s.get("entry_price", 0),
+                "trend_direction": 1 if s.get("signal_type") == "BUY" else -1,
+                "trend_strength": s.get("trend_strength", 50.0),
+                "rsi": s.get("rsi", 50.0),
+                "atr": s.get("atr", 0.01),
+                "signal_type": s.get("signal_type", "BUY"),
+                "sl_mult": s.get("sl_mult", 1.5),
+                "tp_mult": s.get("tp_mult", 3.0),
+                "funding_rate": s.get("funding_rate", 0.0),
+            }
+            ai_filter.add_trade_data(signal_data, status)
+            
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
 
