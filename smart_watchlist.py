@@ -7,11 +7,21 @@ from signals import (
 
 exchange = ccxt.binance()
 
-def scan_best_coins(timeframe="15m", limit=50, top_n=10):
-    """En iyi sinyal potansiyelli coin'leri bulur."""
+# Stablecoin listesi - bunları asla seçme
+STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD"]
+
+# Düşük kaliteli coin'ler (hacimsiz, scam riskli)
+LOW_QUALITY = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "USTC", "LUNA", "FTM", "CEL", "SRM"]
+
+
+def scan_best_coins(timeframe="15m", limit=100, top_n=20):
+    """En iyi sinyal potansiyelli coin'leri bulur. (v2 - 20 coin, stablecoin filtresi)"""
     
     tickers = exchange.fetch_tickers()
     usdt_pairs = [s for s in tickers if s.endswith("/USDT")]
+    
+    # Stablecoin'leri filtrele
+    usdt_pairs = [s for s in usdt_pairs if s.split("/")[0] not in STABLE_COINS]
     
     results = []
     
@@ -26,11 +36,20 @@ def scan_best_coins(timeframe="15m", limit=50, top_n=10):
             atr_val = float(df["close"].pct_change().tail(20).std() * 100)
             volume = tickers[symbol].get("quoteVolume", 0)
             
+            # Hacim filtresi - çok düşük hacimlileri cezalandır
+            if volume < 1_000_000:  # $1M altı günlük hacim
+                volume_score = 0
+            elif volume < 5_000_000:
+                volume_score = min(np.log10(volume / 1000000) * 3, 5)
+            else:
+                volume_score = min(np.log10(volume / 1000000) * 2, 10)
+            
             # PUAN HESAPLAMA
-            score = min(avg_r2 * 0.4, 40)  # R² (max 40)
+            score = min(avg_r2 * 0.5, 50)  # R² (max 50, daha önemli)
             score += max(0, 30 - trend_changes * 5)  # Kararlılık (max 30)
-            score += min(atr_val * 3, 20)  # Volatilite (max 20)
-            score += min(np.log10(volume + 1) * 2, 10)  # Hacim (max 10)
+            score += min(atr_val * 2, 15)  # Volatilite (max 15, düşürüldü)
+            score += volume_score  # Hacim (max 10)
+            score += 5 if trend.tail(1).iloc[0] != 0 else 0  # Net trend bonusu
             
             results.append({
                 "symbol": symbol,
