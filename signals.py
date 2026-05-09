@@ -357,6 +357,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
             "trend_direction":  1,
             "reason":           reason,
             "neutral_bars":     neutral_bars,  # ← BU SATIRI EKLE
+            "volume_ratio":     round(cur_volume / avg_volume, 2),
         }
 
     sl = cur_price + sl_mult * cur_atr
@@ -381,6 +382,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         "trend_direction":  -1,
         "reason":           reason,
         "neutral_bars":     neutral_bars,  # ← BU SATIRI EKLE
+        "volume_ratio":     round(cur_volume / avg_volume, 2),
     }
 
 def calculate_signals(symbol: str, timeframe: str = "1h",
