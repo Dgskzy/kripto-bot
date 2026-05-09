@@ -7,6 +7,7 @@ db = client["kripto_bot"]
 col = db["watchlist"]
 
 VALID_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
+VALID_MTF_TIMEFRAMES = ["1h", "4h", "1d"]  # Üst zaman dilimi olarak seçilebilecekler
 DEFAULT_COINS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "XRP/USDT", "LINK/USDT", "EGLD/USDT"]
 
 
@@ -18,7 +19,7 @@ def _get(user_id: int) -> dict:
             "_id": uid,
             "coins": DEFAULT_COINS.copy(),
             "timeframe": "1h",
-            "mtf_timeframe": "1h",
+            "mtf_timeframes": ["1h"],   # ← Liste oldu, varsayılan 1h
             "last_signals": {},
         }
         col.insert_one(doc)
@@ -26,7 +27,12 @@ def _get(user_id: int) -> dict:
 
 
 def get_user_settings(user_id: int) -> dict:
-    return _get(user_id)
+    doc = _get(user_id)
+    # Geriye dönük uyum: eski mtf_timeframe string ise listeye çevir
+    if "mtf_timeframes" not in doc:
+        old_val = doc.get("mtf_timeframe", "1h")
+        doc["mtf_timeframes"] = [old_val] if isinstance(old_val, str) else old_val
+    return doc
 
 
 def add_coin(user_id: int, symbol: str) -> bool:
@@ -66,6 +72,7 @@ def get_all_users_with_coins() -> list:
             "user_id": int(doc["_id"]),
             "coins": coins,
             "timeframe": doc.get("timeframe", "1h"),
+            "mtf_timeframes": doc.get("mtf_timeframes", ["1h"]),  # ← liste
             "last_signals": doc.get("last_signals", {}),
         })
     return result
@@ -83,12 +90,16 @@ def get_last_signal(user_id: int, symbol: str) -> str:
     doc = _get(user_id)
     return doc.get("last_signals", {}).get(symbol, "")
 
-def set_mtf_timeframe(user_id: int, timeframe: str):
-    """MTF üst zaman dilimini günceller."""
-    _get(user_id)  # Kullanıcı yoksa oluştur
+def set_mtf_timeframes(user_id: int, timeframes: list):
+    """MTF üst zaman dilimlerini günceller. Örn: ['1h', '4h']"""
+    _get(user_id)
+    # Geçersiz olanları filtrele
+    valid_list = [tf for tf in timeframes if tf in VALID_MTF_TIMEFRAMES]
+    if not valid_list:
+        valid_list = ["1h"]
     col.update_one(
         {"_id": str(user_id)},
-        {"$set": {"mtf_timeframe": timeframe}}
+        {"$set": {"mtf_timeframes": valid_list}}
     )
 
 def get_all_last_signals(user_id: int) -> dict:
