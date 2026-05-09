@@ -22,6 +22,7 @@ def scan_best_coins(timeframe="15m", limit=100, top_n=20):
     
     # Stablecoin'leri filtrele
     usdt_pairs = [s for s in usdt_pairs if s.split("/")[0] not in STABLE_COINS]
+    usdt_pairs = [s for s in usdt_pairs if tickers[s].get("quoteVolume", 0) > 50_000_000]
     
     results = []
     
