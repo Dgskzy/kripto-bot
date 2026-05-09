@@ -95,3 +95,20 @@ def get_all_last_signals(user_id: int) -> dict:
     """Kullanıcının tüm coin'ler için son sinyal kayıtlarını döndürür."""
     doc = _get(user_id)
     return doc.get("last_signals", {})
+
+from datetime import datetime, timezone
+
+def update_last_signal_time(user_id: int, symbol: str):
+    """Bir sinyal gönderildiğinde veya güncellendiğinde zaman damgasını kaydeder."""
+    col.update_one(
+        {"_id": str(user_id)},
+        {"$set": {f"last_signal_time.{symbol}": datetime.now(timezone.utc)}}
+    )
+
+def get_last_signal_time(user_id: int, symbol: str):
+    """Bir coin için son sinyal zaman damgasını döndürür."""
+    doc = _get(user_id)
+    return doc.get("last_signal_time", {}).get(symbol)
+
+
+
