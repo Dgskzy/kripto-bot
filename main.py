@@ -44,11 +44,12 @@ from open_signals import (
     check_and_update_signal, get_stats, get_history, _update_signal_sl,
     _update_signal_tp  # <--- BU EKLENDİ
 )
+
 from watchlist import (
-    add_coin, remove_coin, set_timeframe, set_mtf_timeframe,
+    add_coin, remove_coin, set_timeframe, set_mtf_timeframe, set_mtf_timeframes,
     get_user_settings, get_all_users_with_coins,
-    update_last_signal, get_last_signal, VALID_TIMEFRAMES,
-    update_last_signal_time, get_last_signal_time  # <--- YENİ EKLENENLER
+    update_last_signal, get_last_signal, VALID_TIMEFRAMES, VALID_MTF_TIMEFRAMES,
+    update_last_signal_time, get_last_signal_time
 )
 from backtest import run_backtest
 
@@ -964,10 +965,10 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
         for symbol in coins:
             try:
                 # Kullanıcının MTF ayarını al
-                user_mtf = user.get("mtf_timeframe", "1h")
+                user_mtf = user.get("mtf_timeframe", ["1h"])
                 sig = detect_signal(symbol, timeframe, 
                                     use_mtf=True, 
-                                    higher_tf=user_mtf)
+                                    higher_tfs=user_mtf)
                 if sig is None:
                     continue
 
@@ -1202,21 +1203,20 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"Open signal check error {s['id']}: {e}")
 
 async def setmtf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """MTF üst zaman dilimini ayarlar."""
-    if not context.args or context.args[0] not in VALID_TIMEFRAMES:
+    if not context.args:
         await update.message.reply_text(
-            f"Kullanım: /setmtf <zaman>\n"
-            f"Geçerli: {' | '.join(VALID_TIMEFRAMES)}\n"
-            f"Örnek: /setmtf 4h\n\n"
-            f"MTF: Üst zaman dilimi ana trendi belirler.\n"
-            f"15dk'da tarama yaparken üst trende ters sinyaller engellenir."
+            f"Kullanım: /setmtf <liste>\n"
+            f"Geçerli: {', '.join(VALID_MTF_TIMEFRAMES)}\n"
+            f"Örnek: /setmtf 1h,4h,1d\n"
+            f"Sadece 1h: /setmtf 1h"
         )
         return
-    tf = context.args[0]
-    set_mtf_timeframe(update.effective_user.id, tf)
+    raw = context.args[0]
+    tfs = [tf.strip() for tf in raw.split(",")]
+    set_mtf_timeframes(update.effective_user.id, tfs)
+    final_list = get_user_settings(update.effective_user.id).get("mtf_timeframes", ["1h"])
     await update.message.reply_text(
-        f"✅ MTF üst zaman dilimi *{tf}* olarak güncellendi.\n"
-        f"Ana trend yönü bu zaman diliminden alınacak.",
+        f"✅ MTF üst zaman dilimleri *{', '.join(final_list)}* olarak güncellendi.",
         parse_mode="Markdown"
     )
 
@@ -1255,7 +1255,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = get_user_settings(user_id)
     
     timeframe = settings.get("timeframe", "1h")
-    mtf = settings.get("mtf_timeframe", "1h")
+    mtf_list = settings.get("mtf_timeframes", ["1h"])
     coins = settings.get("coins", [])
     
     lines = [
@@ -1275,6 +1275,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"🎯 Min R²: *Dinamik (35-55)*")
     lines.append(f"💰 R:R Oranı: *1:2*")
     lines.append(f"🛡️ Dinamik SL: *Aktif*")
+    lines.append(f"📊 MTF Ana Trend: *{', '.join(mtf_list)}*")
     lines.append(f"📊 MTF Filtresi: *{'Aktif' if timeframe in ('15m','5m','1m','30m') else 'Pasif'}*")
     
     lines.append(f"\n⏱ Tarama: Her 3 dk")
