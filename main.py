@@ -901,11 +901,18 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(f"🗄️ MongoDB: ✅ Bağlı ({len(cols)} koleksiyon)")
         for c in cols:
             lines.append(f"   📁 {c}: {mdb[c].count_documents({})} belge")
+            
     except Exception as e:
         lines.append(f"🗄️ MongoDB: ❌ {str(e)[:30]}")
 
-        model_in_db = _model_col.count_documents({"_id": "ai_model"}) > 0
+    # AI model MongoDB'de var mı kontrol et (hata olsa da kontrol etmeye çalış)
+    try:
+        from pymongo import MongoClient as Mc2
+        _mdb = Mc2(os.environ.get("MONGODB_URI"))["kripto_bot"]
+        model_in_db = _mdb["ai_model_store"].count_documents({"_id": "ai_model"}) > 0
         lines.append(f"   {'✅' if model_in_db else '❌'} ai_model (MongoDB)")
+    except:
+        lines.append("   ❌ ai_model (kontrol edilemedi)")
 
     try:
         regime = detect_market_regime("BTC/USDT")
