@@ -243,7 +243,7 @@ def detect_signal(symbol: str, timeframe: str = "1h",
                   method: str = TREND_METHOD,
                   trend_period: int = TREND_PERIOD,
                   use_mtf: bool = True,
-                  higher_tf: str = "1h") -> dict | None:
+                  higher_tfs: list = None) -> dict | None:
     """
     Trend yönü değişimini algılar → AL/SAT sinyali üretir.
     
@@ -308,18 +308,23 @@ def detect_signal(symbol: str, timeframe: str = "1h",
         return None
 
     # ══════════════════════════════════════════════════
-    # MTF FİLTRESİ
+    # MTF FİLTRESİ (Genişletilmiş)
     # ══════════════════════════════════════════════════
     if use_mtf and timeframe in ("15m", "5m", "1m", "30m"):
+        if higher_tfs is None:
+            higher_tfs = ["1h"]
         try:
-            df_htf = get_ohlcv(symbol, timeframe=higher_tf, limit=150)
-            trend_htf = compute_trend_series(df_htf, trend_period, method)
-            bias = int(trend_htf.iloc[-2])
-            
-            if bias == 1 and bearish_start:
-                return None
-            if bias == -1 and bullish_start:
-                return None
+            for htf in higher_tfs:
+                if htf == timeframe:
+                    continue  # Kendini kontrol etme
+                df_htf = get_ohlcv(symbol, timeframe=htf, limit=150)
+                trend_htf = compute_trend_series(df_htf, trend_period, method)
+                bias = int(trend_htf.iloc[-2])
+                
+                if bias == 1 and bearish_start:
+                    return None
+                if bias == -1 and bullish_start:
+                    return None
         except:
             pass
 
