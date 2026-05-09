@@ -1057,6 +1057,16 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 # Yeni sinyali kaydet ve gönder
                 update_last_signal(user_id, symbol, sig["signal_type"])
                 update_last_signal_time(user_id, symbol)
+                 # ═══════ HACİM BAZLI POZİSYON NOTU ═══════
+                volume_ratio = sig.get("volume_ratio", 1.0)
+                if volume_ratio >= 1.5:
+                    position_note = "🔥 YÜKSEK HACİM (Pozisyon: 2x)"
+                elif volume_ratio >= 1.0:
+                    position_note = "✅ NORMAL HACİM (Pozisyon: 1x)"
+                else:
+                    position_note = "⚠️ DÜŞÜK HACİM (Pozisyon: 0.5x)"
+                # ═══════════════════════════════════════════
+                
                 saved = add_signal(
                     user_id=user_id,
                     symbol=symbol,
@@ -1066,7 +1076,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                     take_profit=sig["take_profit"],
                     atr=sig["atr"],
                     timeframe=timeframe,
-                    reason=sig["reason"],
+                    reason=sig["reason"] + "\n" + position_note, 
                     strength=quality,
                 )
 
