@@ -46,7 +46,7 @@ from open_signals import (
 )
 
 from watchlist import (
-    add_coin, remove_coin, set_timeframe, set_mtf_timeframe, set_mtf_timeframes,
+    add_coin, remove_coin, set_timeframe, set_mtf_timeframes,
     get_user_settings, get_all_users_with_coins,
     update_last_signal, get_last_signal, VALID_TIMEFRAMES, VALID_MTF_TIMEFRAMES,
     update_last_signal_time, get_last_signal_time
