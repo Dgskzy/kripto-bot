@@ -42,6 +42,7 @@ from open_signals import (
     add_signal, get_open_signals, get_all_open_signals,
     get_open_signals_for_coin, close_signal, close_all_open_for_coin,
     check_and_update_signal, get_stats, get_history, _update_signal_sl,
+    _update_signal_tp  # <--- BU EKLENDİ
 )
 from backtest import run_backtest
 
@@ -529,7 +530,31 @@ async def opensignals_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             status_now = check_and_update_signal(s, cur_price)
             if status_now != "open":
                 cp = s["take_profit"] if status_now == "tp_hit" else s["stop_loss"]
-                close_signal(s["id"], status_now, close_price=cp)
+                was_closed = close_signal(s["id"], status_now, close_price=cp)
+                
+                # Eğer sinyal başarıyla kapatıldıysa bildirim gönder
+                if was_closed:
+                    icon = "✅" if status_now == "tp_hit" else "❌"
+                    label = "TAKE PROFIT" if status_now == "tp_hit" else "STOP LOSS"
+                    
+                    if s["signal_type"] == "BUY":
+                        pnl = (cp - s["entry_price"]) / s["entry_price"] * 100
+                    else:
+                        pnl = (s["entry_price"] - cp) / s["entry_price"] * 100
+                    pnl_icon = "📈" if pnl >= 0 else "📉"
+                    
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=(
+                            f"{icon} {label} TETİKLENDİ!\n\n"
+                            f"{signal_icon} {s['signal_type']} — {s['symbol']} [{s['timeframe']}]\n\n"
+                            f"Giriş: {format_price(s['entry_price'])}\n"
+                            f"Çıkış: {format_price(cp)}\n"
+                            f"{pnl_icon} Sonuç: {pnl:+.2f}%\n\n"
+                            f"Yeni sinyal ancak ters yön oluştuğunda gelecektir.\n"
+                            f"Signal ID: {s['id']}"
+                        ),
+                    )
 
             if s["signal_type"] == "BUY":
                 pnl_pct = (cur_price - s["entry_price"]) / s["entry_price"] * 100
