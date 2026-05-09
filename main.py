@@ -33,18 +33,12 @@ from alerts import (
     add_alert, get_user_alerts, get_all_active_alerts,
     mark_alert_triggered, delete_alert,
 )
-from watchlist import (
-    add_coin, remove_coin, set_timeframe, set_mtf_timeframe,
-    get_user_settings, get_all_users_with_coins,
-    update_last_signal, get_last_signal, VALID_TIMEFRAMES,
-)
 from open_signals import (
     add_signal, get_open_signals, get_all_open_signals,
     get_open_signals_for_coin, close_signal, close_all_open_for_coin,
     check_and_update_signal, get_stats, get_history, _update_signal_sl,
     _update_signal_tp  # <--- BU EKLENDİ
 )
-
 from watchlist import (
     add_coin, remove_coin, set_timeframe, set_mtf_timeframes,
     get_user_settings, get_all_users_with_coins,
