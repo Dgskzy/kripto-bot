@@ -44,6 +44,12 @@ from open_signals import (
     check_and_update_signal, get_stats, get_history, _update_signal_sl,
     _update_signal_tp  # <--- BU EKLENDİ
 )
+from watchlist import (
+    add_coin, remove_coin, set_timeframe, set_mtf_timeframe,
+    get_user_settings, get_all_users_with_coins,
+    update_last_signal, get_last_signal, VALID_TIMEFRAMES,
+    update_last_signal_time, get_last_signal_time  # <--- YENİ EKLENENLER
+)
 from backtest import run_backtest
 
 logging.basicConfig(
@@ -980,6 +986,29 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
 
                 last = get_last_signal(user_id, symbol)
 
+                # ═══════ COOLDOWN KONTROLÜ (YENİ) ═══════
+                # Aynı yönde yeni bir sinyal gelmesi için en az 30dk geçmeli
+                COOLDOWN_MINUTES = 30
+                last_time = get_last_signal_time(user_id, symbol)
+                
+                # Eğer son sinyalin yönü ile şu anki sinyalin yönü aynıysa
+                if last == sig["signal_type"] and last_time is not None:
+                    # last_time MongoDB'den string olarak gelebilir, datetime'a çevir
+                    if isinstance(last_time, str):
+                        from datetime import datetime as dt
+                        last_time = dt.fromisoformat(last_time)
+                    
+                    now = datetime.now(timezone.utc)
+                    # Son sinyalin üzerinden COOLDOWN_MINUTES kadar geçmiş mi?
+                    if (now - last_time).total_seconds() < COOLDOWN_MINUTES * 60:
+                        continue  # Süre dolmadıysa bu sinyali atla
+                # ═══════════════════════════════════════════
+
+                # ═══════ SPAM KORUMASI (v3 - Re-Entry) ═══════
+                if last == sig["signal_type"]:
+                    neutral_bars = sig.get("neutral_bars", 0)
+                    # ... (mevcut re-entry kontrolleri) ...
+
                 # ═══════ SPAM KORUMASI (v3 - Re-Entry) ═══════
                 if last == sig["signal_type"]:
                     neutral_bars = sig.get("neutral_bars", 0)
@@ -1027,6 +1056,7 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
 
                 # Yeni sinyali kaydet ve gönder
                 update_last_signal(user_id, symbol, sig["signal_type"])
+                update_last_signal_time(user_id, symbol)
                 saved = add_signal(
                     user_id=user_id,
                     symbol=symbol,
