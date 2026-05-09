@@ -4,13 +4,14 @@ import numpy as np
 from signals import (
     calc_atr,
     get_coin_profile,
+    get_dynamic_sl_mult,
     compute_trend_series,
     compute_strength_series,
     TREND_METHOD,
     TREND_PERIOD,
     TREND_STRENGTH_MIN,
 )
-from trailing_stop import calc_trailing_sl
+from trailing_stop import calc_trailing_duo
 
 exchange = ccxt.binance()
 
@@ -28,19 +29,15 @@ def run_backtest(
     trend_period: int = TREND_PERIOD,
 ) -> dict:
     """
-    Trend Analizi (Pine Script Mr_Rakun) + Trailing Stop backtesti.
+    Trend Analizi (Pine Script Mr_Rakun) + Trailing Stop/TP Backtesti (v3).
 
-    Sinyal kuralı:
-    - Trend yönü değişip YÜKSELİŞ'e dönünce VE R² >= TREND_STRENGTH_MIN → BUY
-    - Trend yönü değişip DÜŞÜŞ'e dönünce  VE R² >= TREND_STRENGTH_MIN → SELL
-
-    Notlar:
-    - Aynı mumda hem SL hem TP tetiklenirse açılışa yakın olan önce alınır
-    - Gap açılışı: fiyat zaten SL ötesinde açılırsa açılış fiyatından çıkılır
-    - filtered_signals: güç filtresiyle elenenlerin sayısı
+    Filtreler:
+    - R² minimum (dinamik eşik)
+    - Onay mumu
+    - Hacim
     """
     profile  = get_coin_profile(symbol)
-    sl_mult  = profile["sl_mult"]
+    base_sl  = profile["sl_mult"]
     tp_mult  = profile["tp_mult"]
 
     bars_per_day = TF_BARS_PER_DAY.get(timeframe, 24)
@@ -71,31 +68,48 @@ def run_backtest(
     stop_loss        = 0.0
     take_profit      = 0.0
     original_sl      = 0.0
+    original_tp      = 0.0
     entry_time       = None
 
-    start_i = trend_period + 2   # ısınma barları
+    start_i = trend_period + 3   # Onay mumu için +1 bar daha
 
     for i in range(start_i, len(df) - 1):
-        cur_open  = float(df["open"].iloc[i])
-        cur_high  = float(df["high"].iloc[i])
-        cur_low   = float(df["low"].iloc[i])
-        cur_close = float(df["close"].iloc[i])
-        cur_atr   = float(atr_series.iloc[i])
+        cur_open   = float(df["open"].iloc[i])
+        cur_high   = float(df["high"].iloc[i])
+        cur_low    = float(df["low"].iloc[i])
+        cur_close  = float(df["close"].iloc[i])
+        cur_atr    = float(atr_series.iloc[i])
+        cur_volume = float(df["volume"].iloc[i])
 
-        cur_trend  = int(trend_series.iloc[i])
-        prev_trend = int(trend_series.iloc[i - 1])
-        cur_strength = float(strength_series.iloc[i])
+        # Trend ve güç bilgileri (bir önceki kapalı mum)
+        cur_trend    = int(trend_series.iloc[i-1])
+        prev_trend   = int(trend_series.iloc[i-2])
+        cur_strength = float(strength_series.iloc[i-1])
+
+        # Onay mumu: mevcut mumun trendi sinyali doğruluyor mu?
+        next_trend   = int(trend_series.iloc[i])
 
         bullish_start = (prev_trend != 1)  and (cur_trend == 1)
         bearish_start = (prev_trend != -1) and (cur_trend == -1)
 
         # ── Açık pozisyon yönetimi ──────────────────────────────────
-        if position == "BUY":
-            stop_loss = calc_trailing_sl(
-                "BUY", entry_price, cur_close, cur_atr,
-                original_sl, take_profit, sl_mult,
+        if position is not None:
+            # Dinamik SL ve TP hesapla
+            new_sl, new_tp = calc_trailing_duo(
+                signal_type=position,
+                entry_price=entry_price,
+                current_price=cur_close,
+                atr=cur_atr,
+                original_sl=original_sl,
+                original_tp=original_tp,
+                trend_strength=cur_strength,
+                sl_mult=sl_mult,
+                tp_mult=tp_mult,
             )
+            stop_loss   = new_sl
+            take_profit = new_tp
 
+        if position == "BUY":
             if cur_open <= stop_loss:
                 exit_px = cur_open
                 pnl = (exit_px - entry_price) / entry_price * 100
@@ -104,6 +118,7 @@ def run_backtest(
                 position = None
 
             elif cur_low <= stop_loss and cur_high >= take_profit:
+                # Hangisi daha önce gerçekleşti?
                 sl_dist = abs(cur_open - stop_loss)
                 tp_dist = abs(cur_open - take_profit)
                 if sl_dist <= tp_dist:
@@ -133,11 +148,6 @@ def run_backtest(
                 position = None
 
         elif position == "SELL":
-            stop_loss = calc_trailing_sl(
-                "SELL", entry_price, cur_close, cur_atr,
-                original_sl, take_profit, sl_mult,
-            )
-
             if cur_open >= stop_loss:
                 exit_px = cur_open
                 pnl = (entry_price - exit_px) / entry_price * 100
@@ -177,22 +187,50 @@ def run_backtest(
         # ── Yeni sinyal (pozisyon yoksa) ────────────────────────────
         if position is None:
             if bullish_start or bearish_start:
-                if cur_strength < TREND_STRENGTH_MIN:
+                # ═══ FİLTRE 1: DİNAMİK R² ═══
+                atr_pct = (cur_atr / cur_close) * 100
+                if atr_pct >= 1.5:
+                    min_r2 = 35
+                elif atr_pct >= 0.8:
+                    min_r2 = 45
+                else:
+                    min_r2 = 55
+
+                if cur_strength < min_r2:
                     filtered_count += 1
                     continue
+
+                # ═══ FİLTRE 2: ONAY MUMU ═══
+                if bullish_start and next_trend != 1:
+                    filtered_count += 1
+                    continue
+                if bearish_start and next_trend != -1:
+                    filtered_count += 1
+                    continue
+
+                # ═══ FİLTRE 3: HACİM ═══
+                avg_volume = float(df["volume"].tail(20).mean())
+                if cur_volume < avg_volume * 0.6:
+                    filtered_count += 1
+                    continue
+
+                # Dinamik SL çarpanı
+                sl_mult = get_dynamic_sl_mult(cur_strength, base_sl)
 
                 if bullish_start:
                     entry_price = cur_close
                     original_sl = cur_close - sl_mult * cur_atr
+                    original_tp = cur_close + tp_mult * cur_atr
                     stop_loss   = original_sl
-                    take_profit = cur_close + tp_mult * cur_atr
+                    take_profit = original_tp
                     position    = "BUY"
                     entry_time  = df.index[i]
                 else:
                     entry_price = cur_close
                     original_sl = cur_close + sl_mult * cur_atr
+                    original_tp = cur_close - tp_mult * cur_atr
                     stop_loss   = original_sl
-                    take_profit = cur_close - tp_mult * cur_atr
+                    take_profit = original_tp
                     position    = "SELL"
                     entry_time  = df.index[i]
 
@@ -220,7 +258,7 @@ def run_backtest(
         "period":           f"{days} gün",
         "method":           method,
         "trend_period":     trend_period,
-        "sl_mult":          sl_mult,
+        "sl_mult":          sl_mult if 'sl_mult' in dir() else base_sl,
         "tp_mult":          tp_mult,
         "total_signals":    total,
         "filtered_signals": filtered_count,
