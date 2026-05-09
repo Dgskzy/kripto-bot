@@ -1255,7 +1255,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = [
         "⚙️ *AYARLARIM*\n",
         f"⏱ Tetik Zaman Dilimi: *{timeframe}*",
-        f"📊 MTF Ana Trend: *{mtf}*",
+        f"📊 MTF Ana Trend: *{', '.join(mtf_list)}*",
         f"📋 Takip Listesi: *{len(coins)}* coin",
     ]
     
@@ -1269,7 +1269,6 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"🎯 Min R²: *Dinamik (35-55)*")
     lines.append(f"💰 R:R Oranı: *1:2*")
     lines.append(f"🛡️ Dinamik SL: *Aktif*")
-    lines.append(f"📊 MTF Ana Trend: *{', '.join(mtf_list)}*")
     lines.append(f"📊 MTF Filtresi: *{'Aktif' if timeframe in ('15m','5m','1m','30m') else 'Pasif'}*")
     
     lines.append(f"\n⏱ Tarama: Her 3 dk")
