@@ -8,10 +8,10 @@ from signals import (
 exchange = ccxt.binance()
 
 # Stablecoin listesi - bunları asla seçme
-STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD"]
+STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD", "USD1"]
 
 # Düşük kaliteli coin'ler (hacimsiz, scam riskli)
-LOW_QUALITY = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "USTC", "LUNA", "FTM", "CEL", "SRM"]
+LOW_QUALITY = []  # Hacim filtresi (40M$) bu işi otomatik yapıyor
 
 
 def scan_best_coins(timeframe="15m", limit=100, top_n=20):
@@ -22,7 +22,7 @@ def scan_best_coins(timeframe="15m", limit=100, top_n=20):
     
     # Stablecoin'leri filtrele
     usdt_pairs = [s for s in usdt_pairs if s.split("/")[0] not in STABLE_COINS]
-    usdt_pairs = [s for s in usdt_pairs if tickers[s].get("quoteVolume", 0) > 50_000_000]
+    usdt_pairs = [s for s in usdt_pairs if tickers[s].get("quoteVolume", 0) > 40_000_000]
     
     results = []
     
