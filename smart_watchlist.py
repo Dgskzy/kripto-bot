@@ -8,7 +8,7 @@ from signals import (
 exchange = ccxt.binance()
 
 # Stablecoin listesi - bunları asla seçme
-STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD", "USD1"]
+STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD", "USD1", "RLUSD"]
 
 # Düşük kaliteli coin'ler (hacimsiz, scam riskli)
 LOW_QUALITY = []  # Hacim filtresi (40M$) bu işi otomatik yapıyor
