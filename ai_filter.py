@@ -57,17 +57,15 @@ class AISignalFilter:
         X, y = [], []
         for trade in trades_data:
             feats  = trade.get("features", [])
-            result = trade.get("result", "sl_hit")
             if len(feats) == 7:
                 X.append(feats)
-                # P&L bazlı: %0.5'ten fazla kâr = başarılı
-                # YENİ:
+                # Hibrit P&L / TP-SL etiketi
                 pnl = trade.get("pnl", None)
                 if pnl is not None and pnl != 0:
-                    # P&L varsa onu kullan
+                    # Pozitif P&L varsa başarılı say (eşik > 0.1)
                     y.append(1 if pnl > 0.1 else 0)
                 else:
-                    # P&L yoksa eski TP/SL etiketini kullan
+                    # P&L yoksa klasik TP/SL etiketini kullan
                     result = trade.get("result", "sl_hit")
                     y.append(1 if result in ("TP", "tp_hit") else 0)
 
@@ -123,7 +121,7 @@ class AISignalFilter:
         doc = {
             "features":  features.flatten().tolist(),
             "result":    normalized,
-            "pnl":       signal_data.get("pnl_pct", 0),  # ← BU EKLENDİ
+            "pnl":       pnl_val,  # P&L değeri tek seferde eklendi
             "timestamp": str(pd.Timestamp.now()),
         }
         if signal_id:
