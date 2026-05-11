@@ -492,9 +492,12 @@ def format_price(price: float) -> str:
     else:
         return f"${price:.8f}"
 
-
 def normalize_symbol(symbol: str) -> str:
     symbol = symbol.upper().strip()
+    
+    # Stablecoin'lerin tam listesi - bunları asla parçalama
+    STABLE_COINS = ["USDC", "BUSD", "USDP", "TUSD", "FDUSD", "DAI", "USDD", "USTC", "PAX", "USDE", "PYUSD", "USD1", "RLUSD"]
+    
     SPECIAL_MAP = {
         "AVAX": "AVAX/USDT",
         "XRP":  "XRP/USDT",
@@ -504,6 +507,7 @@ def normalize_symbol(symbol: str) -> str:
         "ETH":  "ETH/USDT",
         "SOL":  "SOL/USDT",
     }
+    
     if "/" in symbol:
         base, quote = symbol.split("/", 1)
         base = SYMBOL_ALIASES.get(base, base)
@@ -512,6 +516,11 @@ def normalize_symbol(symbol: str) -> str:
         if quote in ("USD", "USDT"):
             return f"{base}/USDT"
         return f"{base}/{quote}"
+    
+    # Eğer sembol bir stablecoin ise, direkt /USDT ekle ve döndür
+    if symbol in STABLE_COINS:
+        return f"{symbol}/USDT"
+    
     if symbol.endswith("USDT"):
         base = symbol[:-4]
     elif symbol.endswith("USD"):
