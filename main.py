@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+import gc
 from flask import Flask
 from smart_watchlist import scan_best_coins
 from watchlist import DEFAULT_COINS
@@ -1108,6 +1109,8 @@ async def scan_watchlist(context: ContextTypes.DEFAULT_TYPE):
                 
             except Exception as e:
                 logger.error(f"Scan error {symbol} user {user_id}: {e}")
+        
+        gc.collect() # <--- İŞTE BU: Tarama bitince mutfağı topla!
 
 
 async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
@@ -1195,6 +1198,8 @@ async def check_open_signals(context: ContextTypes.DEFAULT_TYPE):
             
         except Exception as e:
             logger.error(f"Open signal check error {s['id']}: {e}")
+        
+    gc.collect() # <--- İŞTE BU: Sinyal kontrolü bitince mutfağı topla!
 
 async def setmtf_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -1415,8 +1420,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
 
     app.job_queue.run_repeating(check_alerts,       interval=180,  first=10)
-    app.job_queue.run_repeating(scan_watchlist,      interval=180,  first=15)
-    app.job_queue.run_repeating(check_open_signals,  interval=300,  first=15)
+    app.job_queue.run_repeating(scan_watchlist,      interval=180,  first=30)
+    app.job_queue.run_repeating(check_open_signals,  interval=300,  first=30)
 
     logger.info(f"Bot başlatılıyor — Yöntem: {TREND_METHOD}, Periyot: {TREND_PERIOD}")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
