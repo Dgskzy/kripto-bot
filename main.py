@@ -1421,8 +1421,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
 
     app.job_queue.run_repeating(check_alerts,       interval=180,  first=10)
-    app.job_queue.run_repeating(scan_watchlist,      interval=180,  first=30)
-    app.job_queue.run_repeating(check_open_signals,  interval=300,  first=30)
+    app.job_queue.run_repeating(scan_watchlist,      interval=210,  first=20)  # 3.5 dk
+    app.job_queue.run_repeating(check_open_signals,  interval=180,  first=30)
 
     logger.info(f"Bot başlatılıyor — Yöntem: {TREND_METHOD}, Periyot: {TREND_PERIOD}")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
