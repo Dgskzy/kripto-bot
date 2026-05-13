@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 import gc
+from datetime import datetime, timezone 
 from flask import Flask
 from smart_watchlist import scan_best_coins
 from watchlist import DEFAULT_COINS
