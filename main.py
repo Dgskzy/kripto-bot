@@ -31,6 +31,7 @@ from signals import (
     TREND_PERIOD,
     TREND_STRENGTH_MIN,
     _adx_label,  # <-- BU EKLENECEK
+    compute_trend_series,  # ← EKLENDİ
 )
 from alerts import (
     add_alert, get_user_alerts, get_all_active_alerts,
@@ -265,7 +266,8 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 label = "🟢" if bias == 1 else ("🔴" if bias == -1 else "⚪")
                 mtf_results.append(f"{htf}:{label}")
             mtf_info = " | ".join(mtf_results) if mtf_results else "⏱️ Üst dilim yok"
-        except:
+        except Exception as e:
+            logger.error(f"MTF info error for {symbol}: {e}")
             mtf_info = "❌ Kontrol edilemedi"
         
 
