@@ -400,6 +400,10 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
     trend_series    = compute_trend_series(df, trend_period, method)
     strength_series = compute_strength_series(df["close"], trend_period)
 
+    # ADX hesapla (YENİ)
+    di_plus, di_minus, adx_series = _calc_dmi(df["high"], df["low"], df["close"])
+    adx_val = float(adx_series.iloc[-1])                     
+
     close        = float(df["close"].iloc[-1])
     cur_trend    = int(trend_series.iloc[-1])
     cur_strength = float(strength_series.iloc[-1])
@@ -446,6 +450,7 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
         "trend_method":  method,
         "trend_period":  trend_period,
         "timeframe":     timeframe,
+        "adx":           round(adx_val, 1),  # <-- YENİ
     }
 
 
