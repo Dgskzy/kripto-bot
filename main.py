@@ -30,6 +30,7 @@ from signals import (
     TREND_METHOD,
     TREND_PERIOD,
     TREND_STRENGTH_MIN,
+    _adx_label,  # <-- BU EKLENECEK
 )
 from alerts import (
     add_alert, get_user_alerts, get_all_active_alerts,
