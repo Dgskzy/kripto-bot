@@ -501,7 +501,7 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"*{symbol}*\n"
                 f"  💵 {format_price(d['price'])}\n"
                 f"  {d['trend_emoji']} `{d['trend_text']}` | R²: `%{d['strength']}` ({d['strength_text']})\n"
-                f"  📏 ATR: `{format_price(d['atr'])}` | RSI: `{d['rsi']}`\n"
+                f"  📏 ATR: `{format_price(d['atr'])}` | RSI: `{d['rsi']}` | ADX: `{d.get('adx', 'N/A')}` {d.get('adx_label', '')}\n"
             )
         except Exception as e:
             logger.error(f"Dashboard error {symbol}: {e}")
