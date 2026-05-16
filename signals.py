@@ -482,7 +482,7 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
         "trend_method":  method,
         "trend_period":  trend_period,
         "timeframe":     timeframe,
-        "volume_ratio":  volume_ratio
+        "volume_ratio":  volume_ratio,
         "adx":           round(adx_val, 1),  # <-- YENİ
         "mtf_info":       mtf_info,                   
     }
