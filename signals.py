@@ -444,6 +444,24 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
     sl_mult = profile["sl_mult"]
     tp_mult = profile["tp_mult"]
 
+    # MTF uyum kontrolü (kullanıcı ayarlarından bağımsız, sadece raporlama amaçlı)
+    mtf_info = ""
+    try:
+        # 1h ve 4h üst zaman dilimlerini kontrol et
+        mtf_results = []
+        for htf in ["1h", "4h"]:
+            if htf == timeframe:
+                continue
+            df_htf = get_ohlcv(symbol, timeframe=htf, limit=150)
+            trend_htf = compute_trend_series(df_htf, trend_period, method)
+            bias = int(trend_htf.iloc[-1])
+            label = "🟢" if bias == 1 else ("🔴" if bias == -1 else "⚪")
+            mtf_results.append(f"{htf}:{label}")
+        mtf_info = " | ".join(mtf_results)
+    except:
+        mtf_info = "❌ Kontrol edilemedi"                           
+                           
+
     return {
         "symbol":        symbol,
         "price":         close,
@@ -466,6 +484,7 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
         "timeframe":     timeframe,
         "volume_ratio":  volume_ratio
         "adx":           round(adx_val, 1),  # <-- YENİ
+        "mtf_info":       mtf_info,                   
     }
 
 
