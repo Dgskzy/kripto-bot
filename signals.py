@@ -478,6 +478,10 @@ def get_dashboard_data(symbol: str, timeframe: str = "1h",
     atr_val      = float(atr_series.iloc[-1])
     rsi_val      = round(float(rsi_series.iloc[-1]), 1)
     trend_emoji  = "🟢" if cur_trend == 1 else ("🔴" if cur_trend == -1 else "⚪")
+    # ADX hesapla
+    _, _, adx_series = _calc_dmi(df["high"], df["low"], df["close"])
+    adx_val = round(float(adx_series.iloc[-1]), 1)
+                            
 
     return {
         "symbol":        symbol,
@@ -488,6 +492,8 @@ def get_dashboard_data(symbol: str, timeframe: str = "1h",
         "strength":      round(cur_strength, 1),
         "strength_text": _strength_label(cur_strength),
         "atr":           round(atr_val, 6),
+        "adx":           adx_val,          # ← YENİ
+        "adx_label":     _adx_label(adx_val),  # ← YENİ
         "rsi":           rsi_val,
         "timeframe":     timeframe,
     }
