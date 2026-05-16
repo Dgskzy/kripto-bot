@@ -31,7 +31,8 @@ from signals import (
     TREND_PERIOD,
     TREND_STRENGTH_MIN,
     _adx_label,          # ← EKLENECEK
-    compute_trend_series # ← EKLENECEK
+    compute_trend_series, # ← EKLENECEK
+    get_ohlcv,  # ← BU EKLENECEK
 )
 from alerts import (
     add_alert, get_user_alerts, get_all_active_alerts,
