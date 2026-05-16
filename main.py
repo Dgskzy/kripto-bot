@@ -249,6 +249,25 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Piyasa rejimi
         regime    = detect_market_regime(symbol, timeframe)
         trade_ok, regime_msg = should_trade(regime)
+        
+        # MTF uyum bilgisi (kullanıcı ayarlarına göre dinamik)
+        settings = get_user_settings(update.effective_user.id)
+        user_mtf_list = settings.get("mtf_timeframes", ["1h"])
+        mtf_info = ""
+        try:
+            mtf_results = []
+            for htf in user_mtf_list:
+                if htf == timeframe:
+                    continue
+                df_htf = get_ohlcv(symbol, timeframe=htf, limit=150)
+                trend_htf = compute_trend_series(df_htf, TREND_PERIOD, TREND_METHOD)
+                bias = int(trend_htf.iloc[-1])
+                label = "🟢" if bias == 1 else ("🔴" if bias == -1 else "⚪")
+                mtf_results.append(f"{htf}:{label}")
+            mtf_info = " | ".join(mtf_results) if mtf_results else "⏱️ Üst dilim yok"
+        except:
+            mtf_info = "❌ Kontrol edilemedi"
+        
 
         # Fonlama
         funding = get_funding_info(symbol)
@@ -286,7 +305,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📈 *PİYASA ORTAMI*\n"
             f"Rejim: {regime['regime']} (Eğim: %{regime['adx']})\n"
             f"   {regime_msg}\n"
-            f"📊 MTF Uyumu: `{s.get('mtf_info', 'N/A')}`\n\n"
+            f"📊 MTF Uyumu: `{mtf_info}`\n\n"
             f"💪 *TREND GÜCÜ & YÖNÜ*\n"
             f"Yön: `{s['trend_text']}` | Regresyon: `{format_price(s['regline'])}`\n"
             f"R²: `%{s['strength']}` — `{s['strength_text']}`\n"
