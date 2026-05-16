@@ -287,7 +287,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Regresyon Hattı: `{format_price(s['regline'])}`\n\n"
             f"💪 Trend Gücü (R²)\n"
             f"Skor: `%{s['strength']}` — `{s['strength_text']}`\n"
-            f"📏 ADX: `{s.get('adx', 'N/A')}`\n"
+            f"📏 ADX: `{s.get('adx', 'N/A')}` — {_adx_label(s.get('adx', 0))}\n"
             f"Periyot: `{s['trend_period']}` bar\n\n"
             f"📏 *ATR Seviyeleri*\n"
             f"ATR: `{format_price(s['atr'])}`\n"
