@@ -30,8 +30,8 @@ from signals import (
     TREND_METHOD,
     TREND_PERIOD,
     TREND_STRENGTH_MIN,
-    _adx_label,  # <-- BU EKLENECEK
-    compute_trend_series,  # ← EKLENDİ
+    _adx_label,          # ← EKLENECEK
+    compute_trend_series # ← EKLENECEK
 )
 from alerts import (
     add_alert, get_user_alerts, get_all_active_alerts,
@@ -252,7 +252,7 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         trade_ok, regime_msg = should_trade(regime)
         
         # MTF uyum bilgisi (kullanıcı ayarlarına göre dinamik)
-        settings = get_user_settings(update.effective_user.id)
+        
         user_mtf_list = settings.get("mtf_timeframes", ["1h"])
         mtf_info = ""
         try:
