@@ -407,6 +407,12 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
     rsi_series      = calc_rsi(df["close"])
     trend_series    = compute_trend_series(df, trend_period, method)
     strength_series = compute_strength_series(df["close"], trend_period)
+                           
+    # Hacim oranı hesapla (YENİ)
+    cur_volume = float(df["volume"].iloc[-1])
+    avg_volume = float(df["volume"].tail(20).mean())
+    volume_ratio = round(cur_volume / avg_volume, 2) if avg_volume > 0 else 1.0
+                           
 
     # ADX hesapla (YENİ)
     di_plus, di_minus, adx_series = _calc_dmi(df["high"], df["low"], df["close"])
@@ -458,6 +464,7 @@ def calculate_signals(symbol: str, timeframe: str = "1h",
         "trend_method":  method,
         "trend_period":  trend_period,
         "timeframe":     timeframe,
+        "volume_ratio":  volume_ratio
         "adx":           round(adx_val, 1),  # <-- YENİ
     }
 
