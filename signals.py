@@ -225,6 +225,14 @@ def compute_strength_series(src: pd.Series, length: int) -> pd.Series:
 def _trend_label(trend: int) -> str:
     return "▲ YÜKSELİŞ" if trend == 1 else ("▼ DÜŞÜŞ" if trend == -1 else "─ NÖTR")
 
+def _adx_label(adx: float) -> str:
+    if adx > 50:
+        return "🟢 ÇOK GÜÇLÜ"
+    elif adx >= 25:
+        return "🟡 GÜÇLÜ"
+    else:
+        return "🔴 ZAYIF"
+
 
 def _strength_label(s: float) -> str:
     if s > 70:
