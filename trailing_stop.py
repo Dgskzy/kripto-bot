@@ -8,16 +8,29 @@ def calc_trailing_sl(
     sl_mult: float = 1.5,
     trail_activation: float = 0.5,
     trail_distance: float = 1.0,
+    trend_strength: float = 50.0,  # <-- YENİ: Trend gücü parametresi
 ) -> float:
     """
     Dinamik Trailing Stop hesaplar.
     
     - TP'nin %50'sine ulaşana kadar: Sabit SL
-    - TP'nin %50'sine ulaştıktan sonra: Fiyatı 1 ATR mesafeden takip eder
+    - TP'nin %50'sine ulaştıktan sonra: Fiyatı dinamik ATR mesafeden takip eder
     - Yeni SL, ESKİ SL'den DAHA İYİ olmalı (karı korumalı)
+    - Trend gücüne göre takip mesafesi ayarlanır (Trende Saygı Duruşu)
     
     Döndürdüğü: Yeni Stop Loss fiyatı
     """
+    # ═══════ TRENDE SAYGI DURUŞU (DİNAMİK TAKİP MESAFESİ) ═══════
+    if trend_strength > 80:
+        dynamic_distance = 1.8  # Süper trend, bırak koşsun
+    elif trend_strength > 65:
+        dynamic_distance = 1.4  # Güçlü trend, nefes alsın
+    elif trend_strength > 50:
+        dynamic_distance = 1.0  # Standart takip
+    else:
+        dynamic_distance = 0.7  # Zayıf trend, dizginleri sık
+    # ═══════════════════════════════════════════════════════════
+
     tp_distance = abs(original_tp - entry_price)
     
     if signal_type == "BUY":
@@ -26,7 +39,7 @@ def calc_trailing_sl(
         
         # TP'nin %50'sine ulaştıysa trailing başlat
         if profit_pct >= tp_pct * trail_activation:
-            trailing_sl = current_price - (trail_distance * atr)
+            trailing_sl = current_price - (dynamic_distance * atr)  # <-- dinamik mesafe
             # Yeni SL, eski SL'den yukarıdaysa güncelle (karı koru)
             return max(original_sl, trailing_sl)
         else:
@@ -37,7 +50,7 @@ def calc_trailing_sl(
         tp_pct = (entry_price - original_tp) / entry_price * 100
         
         if profit_pct >= tp_pct * trail_activation:
-            trailing_sl = current_price + (trail_distance * atr)
+            trailing_sl = current_price + (dynamic_distance * atr)  # <-- dinamik mesafe
             # Yeni SL, eski SL'den aşağıdaysa güncelle (karı koru)
             return min(original_sl, trailing_sl)
         else:
@@ -106,7 +119,7 @@ def calc_trailing_duo(
     Döndürdüğü: (yeni_sl, yeni_tp)
     """
     
-    # Dinamik SL (mevcut)
+    # Dinamik SL (Trende Saygı Duruşu aktif)
     new_sl = calc_trailing_sl(
         signal_type=signal_type,
         entry_price=entry_price,
@@ -117,9 +130,10 @@ def calc_trailing_duo(
         sl_mult=sl_mult,
         trail_activation=trail_activation,
         trail_distance=trail_distance,
+        trend_strength=trend_strength,  # <-- YENİ: trend gücü iletiliyor
     )
     
-    # Dinamik TP (YENİ)
+    # Dinamik TP
     new_tp = calc_dynamic_tp(
         signal_type=signal_type,
         entry_price=entry_price,
